@@ -1,0 +1,30 @@
+version: "3.9"
+services:
+  bot:
+    image: hummingbot/hummingbot:latest
+    volumes:
+      - "./hummingbot_files/conf:/conf"
+      - "./hummingbot_files/logs:/logs"
+      - "./hummingbot_files/data:/data"
+      - "./hummingbot_files/scripts:/scripts"
+      - "./hummingbot_files/certs:/certs"
+    logging:
+      driver: "json-file"
+      options:
+          max-size: "10m"
+          max-file: 5
+    tty: true
+    stdin_open: true
+    network_mode: host
+
+  gateway:
+    image: hummingbot/gateway:latest
+    ports:
+      - "15888:15888"
+      - "8080:8080"
+    volumes:
+      - "./gateway_files/conf:/usr/src/app/conf"
+      - "./gateway_files/logs:/usr/src/app/logs"
+      - "./hummingbot_files/certs:/usr/src/app/certs"
+    environment:
+      - GATEWAY_PASSPHRASE=a

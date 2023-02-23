@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  bot:
+    image: hummingbot/hummingbot:latest
+    volumes:
+      - "./hummingbot_files/conf:/conf"
+      - "./hummingbot_files/logs:/logs"
+      - "./hummingbot_files/data:/data"
+      - "./hummingbot_files/scripts:/scripts"
+      - "./hummingbot_files/certs:/certs"
+    logging:
+      driver: "json-file"
+      options:
+          max-size: "10m"
+          max-file: 5
+    tty: true
+    stdin_open: true
+    network_mode: host
