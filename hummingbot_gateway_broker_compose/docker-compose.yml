@@ -1,0 +1,59 @@
+version: "3.9"
+services:
+  bot:
+    image: hummingbot/hummingbot:latest
+    volumes:
+      - "./hummingbot_files/conf:/conf"
+      - "./hummingbot_files/logs:/logs"
+      - "./hummingbot_files/data:/data"
+      - "./hummingbot_files/scripts:/scripts"
+      - "./hummingbot_files/certs:/certs"
+    logging:
+      driver: "json-file"
+      options:
+          max-size: "10m"
+          max-file: 5
+    tty: true
+    stdin_open: true
+    network_mode: host
+
+  gateway:
+    image: hummingbot/gateway:latest
+    ports:
+      - "15888:15888"
+      - "8080:8080"
+    volumes:
+      - "./gateway_files/conf:/usr/src/app/conf"
+      - "./gateway_files/logs:/usr/src/app/logs"
+      - "./hummingbot_files/certs:/usr/src/app/certs"
+    environment:
+      - GATEWAY_PASSPHRASE=a
+
+  emqx:
+    image: emqx:5
+    restart: unless-stopped
+    environment:
+      - EMQX_NAME=emqx
+      - EMQX_LOADED_PLUGINS="emqx_recon,emqx_retainer,emqx_management,emqx_dashboard"
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+      - emqx-etc:/opt/emqx/etc
+    ports:
+      - "1883:1883"  # mqtt:tcp
+      - "8883:8883"  # mqtt:tcp:ssl
+      - "8083:8083"  # mqtt:ws
+      - "8084:8084"  # mqtt:ws:ssl
+      - "8081:8081"  # http:management
+      - "18083:18083"  # http:dashboard
+      - "61613:61613"  # web-stomp gateway
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx_ctl", "status"]
+      interval: 5s
+      timeout: 25s
+      retries: 5
+
+volumes:
+  emqx-data: {}
+  emqx-log: {}
+  emqx-etc: {}
