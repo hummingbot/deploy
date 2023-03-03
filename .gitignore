@@ -16,3 +16,6 @@ venv.bak/
 
 *.log
 *.pem
+
+**/gateway_files/*
+**/hummingbot_files/*

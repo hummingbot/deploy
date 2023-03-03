@@ -26,7 +26,7 @@ They also assume that the user has Docker permissions without requiring `sudo`. 
 The `hummingbot-create.sh` script will create the folders needed to run Hummingbot and then install Hummingbot.
 
 ```
-./create.sh
+./hummingbot-create.sh
 ```
 
 ### Start up / connect to an instance of Hummingbot
@@ -34,7 +34,7 @@ The `hummingbot-create.sh` script will create the folders needed to run Hummingb
 The `hummingbot-start.sh` script will connect to a running instance of Hummingbot.
 
 ```
-./start.sh
+./hummingbot-start.sh
 ```
 
 ### Updating Hummingbot version
@@ -42,7 +42,7 @@ The `hummingbot-start.sh` script will connect to a running instance of Hummingbo
 The `hummingbot-update.sh` script will update your instance to the latest version of Hummingbot.
 
 ```
-./update.sh
+./hummingbot-update.sh
 ```
 
 ## Gateway
