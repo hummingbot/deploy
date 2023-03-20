@@ -4,6 +4,8 @@ services:
     image: hummingbot/hummingbot:latest
     volumes:
       - "./hummingbot_files/conf:/conf"
+      - "./hummingbot_files/conf/connectors:/conf/connectors"
+      - "./hummingbot_files/conf/strategies:/conf/strategies"
       - "./hummingbot_files/logs:/logs"
       - "./hummingbot_files/data:/data"
       - "./hummingbot_files/scripts:/scripts"
