@@ -10,10 +10,10 @@ echo
 docker ps -a
 echo
 echo
-read -p "   Enter the NAME of the Hummingbot instance to start or connect to (default = \"hummingbot-instance\") >>> " INSTANCE_NAME
+read -p "   Enter the NAME of the Hummingbot instance to start or connect to (default = \"hummingbot\") >>> " INSTANCE_NAME
 if [ "$INSTANCE_NAME" == "" ]
 then
-  INSTANCE_NAME="hummingbot-instance"
+  INSTANCE_NAME="hummingbot"
 fi
 echo
 # =============================================

@@ -120,7 +120,7 @@ execute_docker () {
  echo
  docker ps
  echo
- echo "ℹ️  Run command \"./start.sh\" to connect to an instance."
+ echo "ℹ️  Run command \"./hummingbot-start.sh\" to connect to an instance."
  echo
 }
 
