@@ -72,11 +72,17 @@ Set your Hummingbot [password](https://docs.hummingbot.org/operation/password/) 
 
 ### Defining your script or strategy
 
-You can auto-start either a [Script](https://docs.hummingbot.org/scripts/) or a [Strategy](https://docs.hummingbot.org/strategies/).
+You can auto-start either a Script or a Strategy.
 
-Scripts are Python files that contain all strategy logic. If you define a `.py` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a script file and looks for the `.py` file in the `scripts` directory. See `scripts/simple_pmm_example.py` for an example.
+[Scripts](https://docs.hummingbot.org/scripts/) are Python files that contain all strategy logic. 
 
-Strategies are configurable strategy templates. If you define a `.yml` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a strategy config file and looks for the `.yml` file in the `conf/strategies` directory. See `conf/strategies/conf_pure_mm_1.yml` for an example.
+If you define a `.py` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a script file and looks for the `.py` file in the `hummingbot_files/scripts` directory. 
+
+See [`simple_pmm_example.py`](/hummingbot_files/scripts/simple_pmm_example.py) for an example.
+
+[Strategies](https://docs.hummingbot.org/strategies/) are configurable strategy templates. If you define a `.yml` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a strategy config file and looks for the `.yml` file in the `hummingbot_files/conf/strategies` directory. 
+
+See [`conf_pure_mm_1.yml`](/hummingbot_files/conf/strategies/conf_pure_mm_1.yml) for an example.
 
 ---
 
