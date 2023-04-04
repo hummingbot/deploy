@@ -12,16 +12,26 @@ Docker Desktop is available on:
 * [Mac](https://docs.docker.com/desktop/install/mac-install/)
 * [Windows](https://docs.docker.com/desktop/install/windows-install/)
 
-## Installation
+## Getting Started
+
+If you have installed Docker Compose successfully, the `docker-compose` command should be available in Terminal/Bash:
+```
+docker-compose
+
+Usage:  docker compose [OPTIONS] COMMAND
+```
+
 
 Clone this repo or copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. This is where your encrypted keys, scripts, trades, and log files will be saved.
+
+### Apple M1/M2 and other ARM machines**: If you are using an Mac with Apple Silicon M1/M2 chipset, use an IDE like VSCode to edit the `docker-compose.yml file
 
 From that directory, run the following command to pull the image and start the instance:
 ```
 docker-compose up -d
 ```
 
-In Terminal/Bash, you should see the following output:
+You should see the following output:
 ```
 [+] Running 1/1
  ⠿ Container simple_hummingbot_compose-bot-1  Started 
@@ -42,7 +52,7 @@ To get started with Hummingbot, check out the following docs:
 * [Quickstart Guide](https://docs.hummingbot.org/quickstart/).
 * [Hummingbot FAQ](https://docs.hummingbot.org/faq/)
 
-## Docker commands
+## Useful Docker Commands
 
 Use the commands below or use the Docker Desktop application to manage your Hummingbot container:
 
@@ -59,6 +69,7 @@ docker attach simple_hummingbot_compose-bot-1
 ### Detach from the instance and return to command line
 
 Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
+
 
 ### Update the container to the latest image
 ```
