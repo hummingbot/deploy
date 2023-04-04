@@ -1,6 +1,6 @@
 # Deploy Hummingbot and Gateway Instances
 
-This installs a [Hummingbot](https://github.com/hummingbot/hummingbot) instance linked to a [Hummingbot Gateway](https://github.com/hummingbot/hummingbot) as Docker containers.
+This installs [Hummingbot](https://github.com/hummingbot/hummingbot) and [Hummingbot Gateway](https://github.com/hummingbot/gateway) as linked Docker containers.
 
 ## Prerequisites
 
