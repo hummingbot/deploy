@@ -2,6 +2,7 @@ version: "3.9"
 services:
   bot:
     image: hummingbot/hummingbot:latest
+    # image: hummingbot/hummingbot:latest-arm
     volumes:
       - "./hummingbot_files/conf:/conf"
       - "./hummingbot_files/conf/connectors:/conf/connectors"

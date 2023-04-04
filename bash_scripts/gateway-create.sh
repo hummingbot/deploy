@@ -10,7 +10,7 @@ echo "ℹ️  Press [ENTER] for default values:"
 echo
 
 echo
-read -p "Enter Gateway version you want to use [latest/development] (default = \"latest\") >>> " GATEWAY_TAG
+read -p "Enter Gateway version you want to use [latest/latest-arm] (default = \"latest\") >>> " GATEWAY_TAG
 if [ "$GATEWAY_TAG" == "" ]
 then
   GATEWAY_TAG="latest"
