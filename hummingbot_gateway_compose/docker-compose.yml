@@ -2,6 +2,7 @@ version: "3.9"
 services:
   bot:
     image: hummingbot/hummingbot:latest
+    # image: hummingbot/hummingbot:latest-arm
     volumes:
       - "./hummingbot_files/conf:/conf"
       - "./hummingbot_files/conf/connectors:/conf/connectors"
@@ -21,6 +22,7 @@ services:
 
   gateway:
     image: hummingbot/gateway:latest
+    # image: hummingbot/gateway:latest-arm
     ports:
       - "15888:15888"
       - "8080:8080"

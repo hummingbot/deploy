@@ -32,7 +32,10 @@ If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-b
 If you have installed Docker Compose successfully, the `docker-compose` command should be available in Terminal/Bash:
 ```
 docker-compose
+```
 
+You should see a response that start with:
+```
 Usage:  docker compose [OPTIONS] COMMAND
 ```
 

@@ -32,9 +32,13 @@ If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-b
 If you have installed Docker Compose successfully, the `docker-compose` command should be available in Terminal/Bash:
 ```
 docker-compose
+```
 
+You should see a response that start with:
+```
 Usage:  docker compose [OPTIONS] COMMAND
 ```
+
 
 Clone this repo or copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. This is where your encrypted keys, scripts, trades, configs, logs, and other files related to your bots will be saved.
 
