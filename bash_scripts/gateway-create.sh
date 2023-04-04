@@ -152,7 +152,7 @@ create_instance () {
    prompt_existing_certs_path
 
    # Launch a new instance of gateway
-   docker run \
+   docker run -d \
    --name $INSTANCE_NAME \
    -p $GATEWAY_PORT:15888 \
    -p $DOCS_PORT:8080 \
