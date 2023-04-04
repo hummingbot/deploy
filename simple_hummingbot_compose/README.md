@@ -1,4 +1,4 @@
-# Deploy a single Hummingbot instance with Docker Compose
+# Deploy Hummingbot Instance
 
 This installs a single [Hummingbot](https://github.com/hummingbot/hummingbot) instance as a Docker container.
 
@@ -36,9 +36,7 @@ docker-compose
 Usage:  docker compose [OPTIONS] COMMAND
 ```
 
-
 Clone this repo or copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. This is where your encrypted keys, scripts, trades, configs, logs, and other files related to your bots will be saved.
-
 
 From that directory, run the following command to pull the image and start the instance:
 ```
@@ -63,7 +61,7 @@ If installation was successful, you should see the Hummingbot welcome screen:
 To get started with Hummingbot, check out the following docs:
 
 * [Basic Features](https://docs.hummingbot.org/operation/)
-* [Quickstart Guide](https://docs.hummingbot.org/quickstart/).
+* [Quickstart Guide](https://docs.hummingbot.org/quickstart/)
 * [Hummingbot FAQ](https://docs.hummingbot.org/faq/)
 
 ## Useful Docker Commands
@@ -80,7 +78,7 @@ docker-compose up -d
 docker attach simple_hummingbot_compose-bot-1
 ```
 
-### Detach from the instance and return to command line
+### Detach from the container and return to command line
 
 Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
 

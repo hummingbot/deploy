@@ -1,4 +1,4 @@
-# Deploy and Auto-start a single Hummingbot instance with Docker Compose
+# Auto-Start Hummingbot Instance
 
 This installs a single [Hummingbot](https://github.com/hummingbot/hummingbot) instance as a Docker container and automatically starts running a pre-configured script or strategy.
 

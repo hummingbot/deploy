@@ -1,4 +1,4 @@
-# Deploy: Hummingbot + Gateway
+# Deploy Hummingbot and Gateway Instances
 
 ## How to use it
 
