@@ -80,7 +80,9 @@ If you define a `.py` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a scri
 
 See [`simple_pmm_example.py`](./hummingbot_files/scripts/simple_pmm_example.py) for an example.
 
-[Strategies](https://docs.hummingbot.org/strategies/) are configurable strategy templates. If you define a `.yml` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a strategy config file and looks for the `.yml` file in the `hummingbot_files/conf/strategies` directory. 
+[Strategies](https://docs.hummingbot.org/strategies/) are configurable strategy templates. 
+
+If you define a `.yml` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a strategy config file and looks for the `.yml` file in the `hummingbot_files/conf/strategies` directory. 
 
 See [`conf_pure_mm_1.yml`](./hummingbot_files/conf/strategies/conf_pure_mm_1.yml) for an example.
 
@@ -88,7 +90,7 @@ See [`conf_pure_mm_1.yml`](./hummingbot_files/conf/strategies/conf_pure_mm_1.yml
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
-Uncomment out the lines that define the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME` environment variables:
+We'll edit the section that defines the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME` environment variables:
 ```yaml
     # environment:
       # - CONFIG_PASSWORD=[your-password]
@@ -96,7 +98,12 @@ Uncomment out the lines that define the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME`
       # - CONFIG_FILE_NAME=conf_pure_mm_1.yml
 ```
 
-Uncomment the `environment:` line, the `CONFIG_PASSWORD` line and add the password you set earlier, and one of `CONFIG_FILE_NAME` lines. Then, replace `CONFIG_PASSWORD` and `CONFIG_FILE_NAME` with the values you defined above. The final section of the file should look like this:
+Remove the '#' to uncomment out:
+ * The `environment:` line
+ * The `CONFIG_PASSWORD` line: add the password you set earlier,
+ * One of `CONFIG_FILE_NAME` lines: add your script OR strategy config file
+ 
+ The final `environment` section of the YAML file should look like this:
 ```yaml
     environment:
       - CONFIG_PASSWORD=[your-password]
@@ -108,6 +115,7 @@ Afterwards, save the file. Now, the script or strategy will auto-start when you 
 docker-compose up -d
 ```
 
+You can attach to the container to inspect it running. If you stop the bot, creating the container will start it again.
 
 ## Useful Docker Commands
 
