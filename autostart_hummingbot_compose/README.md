@@ -48,33 +48,31 @@ Auto-starting a script/strategy lets you start a bot from the command line, skip
 1. Set the password used to encrypt your keys (`CONFIG_PASSWORD`)
 2. Define your script or strategy config file (`CONFIG_FILE_NAME`)
 
-The sample `docker-compose.yml` contains dummy values for these variables. Let's fill them in!
+### Set Hummingbot password
 
-### Setting the Hummingbot password
-
-Start the bot with the following command:
+Pull the latest Hummingbot image and start it with the following command:
 ```
 docker-compose up -d
 ```
 
-You should see the following output:
+After the images have been downloaded, you should see the following output:
 ```
 [+] Running 1/1
  ⠿ Container autostart_hummingbot_compose-bot-1  Started 
  ```
 
-After it has started, attach to the instance:
+Attach to the instance:
 ```
 docker attach autostart_hummingbot_compose-bot-1
 ```
 
-If installation was successful, you should see the Hummingbot welcome screen:
+You should see the Hummingbot welcome screen:
 
 ![welcome screen](../welcome.png)
 
 Set your Hummingbot [password](https://docs.hummingbot.org/operation/password/) and write it down. This is the `CONFIG_PASSWORD` environment variable in your `docker-compose.yml` file. 
 
-### Defining your script or strategy
+### Define script or strategy
 
 You can auto-start either a Script or a Strategy.
 
@@ -90,14 +88,14 @@ If you define a `.yml` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a str
 
 See [`conf_pure_mm_1.yml`](./hummingbot_files/conf/strategies/conf_pure_mm_1.yml) for an example.
 
----
+### Modify the YAML file
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
 We'll edit the section that defines the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME` environment variables:
 ```yaml
     # environment:
-      # - CONFIG_PASSWORD=[your-password]
+      # - CONFIG_PASSWORD=[password]
       # - CONFIG_FILE_NAME=simple_pmm_example.py
       # - CONFIG_FILE_NAME=conf_pure_mm_1.yml
 ```
@@ -110,7 +108,7 @@ Remove the '#' to uncomment out:
  The final `environment` section of the YAML file should look like this:
 ```yaml
     environment:
-      - CONFIG_PASSWORD=[your-password]
+      - CONFIG_PASSWORD=[password]
       - CONFIG_FILE_NAME=simple_pmm_example.py
 ```
 
@@ -151,6 +149,13 @@ docker ps -a
 ```
 
 ### Stop a container
+
+```
+docker-compose down
+```
+
+or:
+
 ```
 docker stop <instance-name>
 ```

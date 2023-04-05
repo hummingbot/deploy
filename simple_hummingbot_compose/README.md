@@ -46,18 +46,18 @@ From that directory, run the following command to pull the image and start the i
 docker-compose up -d
 ```
 
-You should see the following output:
+After the images have been downloaded, you should see the following output:
 ```
 [+] Running 1/1
  ⠿ Container simple_hummingbot_compose-bot-1  Started 
  ```
 
-After it has started, attach to the instance:
+Attach to the instance:
 ```
 docker attach simple_hummingbot_compose-bot-1
 ```
 
-If installation was successful, you should see the Hummingbot welcome screen:
+You should see the Hummingbot welcome screen:
 
 ![welcome screen](../welcome.png)
 
@@ -97,6 +97,13 @@ docker ps -a
 ```
 
 ### Stop a container
+
+```
+docker-compose down
+```
+
+or:
+
 ```
 docker stop <instance-name>
 ```
