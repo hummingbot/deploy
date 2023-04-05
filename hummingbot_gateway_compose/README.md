@@ -118,14 +118,73 @@ Remove the '#' to uncomment out:
 
 Afterwards, save the file.
 
-## Recreate container
+### Recreate container
 
-Now, restart the container and attach to it.
+Now, restart the container
 ```
 docker-compose up -d
+```
+
+Attach to the Hummingbot instance:
+```
+docker attach hummingbot_gateway_compose-bot-1
+```
+After you enter your password, you should now see `GATEWAY:ONLINE` in the upper-right hand corner.
+
+Open a new Terminal/Bash window. In it, attach to the Gateway instance to see its logs:
+```
+docker attach hummingbot_gateway_compose-gateway-1
+```
+See [Gateway](https://docs.hummingbot.org/gateway/) for more details on how to configure it for use with Hummingbot.
+
+
+## Useful Docker Commands
+
+Use the commands below or use the Docker Desktop application to manage your Hummingbot and Gateway container:
+
+### Create the Compose network
+```
+docker-compose up -d
+```
+
+### Attach to the Hummingbot container
+```
+docker attach hummingbot_gateway_compose-bot-1
+```
+
+### Attach to the Gateway container
+```
 docker attach hummingbot_gateway_compose-gateway-1
 ```
 
-You should see `GATEWAY:ONLINE` in the upper-right hand corner of the Hummingbot client.
+### Detach from the container and return to command line
 
-See [Gateway](https://docs.hummingbot.org/gateway/) for more details on how to configure it for use with Hummingbot.
+Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
+
+
+### Update the container to the latest image
+```
+docker-compose up --force-recreate --build -d
+```
+
+### List all containers
+```
+docker ps -a
+```
+
+### Stop the Compose network
+
+```
+docker-compose down
+```
+
+### Stop a container
+
+```
+docker stop <instance-name>
+```
+
+### Remove a container
+```
+docker rm <instance-name>
+```
