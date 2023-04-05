@@ -83,19 +83,28 @@ You'll be prompted for a passphrase used to generate the certificates. This is t
 
 Afterwards, Hummingbot will use the passphrase to generate the certificates and save them in the `hummingbot_files/certs` folder, where the Gateway instance will look for the certificates it needs.
 
-Now, run `stop` to exit the client. Once you're back in Bash/Terminal, run the following command to stop the Compose network:
+Now, run `stop` to exit the client. Once you're back in Bash/Terminal, run the following command to remove the network:
 
 ```
 docker-compose down
 ```
+
+You should see the following output:
+```
+[+] Running 3/3 ⠿ Container hummingbot_gateway_compose-gateway-1 Removed
+ ⠿ Container hummingbot_gateway_compose-bot-1                    Removed
+ ⠿ Network hummingbot_gateway_compose_default                    Removed
+```  
 
 ### Modify YAML file
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
 We'll edit the section that defines the Gateway environment variables:
+```yaml
     # environment:
     #   - GATEWAY_PASSPHRASE=[passphrase]
+```
 
 Remove the '#' to uncomment out:
  * The `environment:` line
@@ -104,7 +113,6 @@ Remove the '#' to uncomment out:
  The final `environment` section of the YAML file should look like this:
 ```yaml
     environment:
-      - CONFIG_PASSWORD=[password]
       - GATEWAY_PASSPHRASE=[passphrase]
 ```
 

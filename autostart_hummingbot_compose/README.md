@@ -88,7 +88,7 @@ If you define a `.yml` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a str
 
 See [`conf_pure_mm_1.yml`](./hummingbot_files/conf/strategies/conf_pure_mm_1.yml) for an example.
 
-### Modify the YAML file
+### Modify YAML file
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
@@ -112,7 +112,12 @@ Remove the '#' to uncomment out:
       - CONFIG_FILE_NAME=simple_pmm_example.py
 ```
 
-Afterwards, save the file. Now, the script or strategy will auto-start when you create the container:
+Afterwards, save the file. 
+
+
+## Recreate container
+
+Now, the script or strategy will auto-start when you create the container:
 ```
 docker-compose up -d
 ```

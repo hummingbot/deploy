@@ -30,5 +30,5 @@ services:
       - "./gateway_files/conf:/usr/src/app/conf"
       - "./gateway_files/logs:/usr/src/app/logs"
       - "./hummingbot_files/certs:/usr/src/app/certs"
-    # environment:
-    #   - GATEWAY_PASSPHRASE=[passphrase]
+    environment:
+      - GATEWAY_PASSPHRASE=gators
