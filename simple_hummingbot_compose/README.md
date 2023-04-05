@@ -71,9 +71,19 @@ To get started with Hummingbot, check out the following docs:
 
 Use the commands below or use the Docker Desktop application to manage your Hummingbot container:
 
-### Create the container
+### Create the Compose network
 ```
 docker-compose up -d
+```
+
+### Stop the Compose network
+```
+docker-compose down
+```
+
+### Update the Compose network for the latest images
+```
+docker-compose up --force-recreate --build -d
 ```
 
 ### Attach to the container
@@ -97,13 +107,6 @@ docker ps -a
 ```
 
 ### Stop a container
-
-```
-docker-compose down
-```
-
-or:
-
 ```
 docker stop <instance-name>
 ```

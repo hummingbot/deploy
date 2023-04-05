@@ -48,7 +48,7 @@ Clone this repo or copy the `docker-compose.yml` file to a directory on your mac
 
 To link the Hummingbot and Gateway instances, you first have to generate certificates within Hummingbot and set the `GATEWAY_PASSPHRASE` variable in the YAML file.
 
-### Generate certificates
+### 1. Generate certificates
 
 Pull the latest Hummingbot and Gateway images and start instances with the following command:
 ```
@@ -96,7 +96,7 @@ You should see the following output:
  ⠿ Network hummingbot_gateway_compose_default                    Removed
 ```  
 
-### Modify YAML file
+### 2. Modify YAML file
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
@@ -118,7 +118,7 @@ Remove the '#' to uncomment out:
 
 Afterwards, save the file.
 
-### Recreate container
+### 3. Recreate container
 
 Now, restart the container
 ```
@@ -147,6 +147,16 @@ Use the commands below or use the Docker Desktop application to manage your Humm
 docker-compose up -d
 ```
 
+### Stop the Compose network
+```
+docker-compose down
+```
+
+### Update the Compose network for the latest images
+```
+docker-compose up --force-recreate --build -d
+```
+
 ### Attach to the Hummingbot container
 ```
 docker attach hummingbot_gateway_compose-bot-1
@@ -159,23 +169,11 @@ docker attach hummingbot_gateway_compose-gateway-1
 
 ### Detach from the container and return to command line
 
-Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
-
-
-### Update the container to the latest image
-```
-docker-compose up --force-recreate --build -d
-```
+* Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
 
 ### List all containers
 ```
 docker ps -a
-```
-
-### Stop the Compose network
-
-```
-docker-compose down
 ```
 
 ### Stop a container

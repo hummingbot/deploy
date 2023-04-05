@@ -48,7 +48,7 @@ Auto-starting a script/strategy lets you start a bot from the command line, skip
 1. Set the password used to encrypt your keys (`CONFIG_PASSWORD`)
 2. Define your script or strategy config file (`CONFIG_FILE_NAME`)
 
-### Set Hummingbot password
+### 1. Set Hummingbot password
 
 Pull the latest Hummingbot image and start it with the following command:
 ```
@@ -72,7 +72,7 @@ You should see the Hummingbot welcome screen:
 
 Set your Hummingbot [password](https://docs.hummingbot.org/operation/password/) and write it down. This is the `CONFIG_PASSWORD` environment variable in your `docker-compose.yml` file. 
 
-### Define script or strategy
+### 2. Define script or strategy config file
 
 You can auto-start either a Script or a Strategy.
 
@@ -88,7 +88,7 @@ If you define a `.yml` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a str
 
 See [`conf_pure_mm_1.yml`](./hummingbot_files/conf/strategies/conf_pure_mm_1.yml) for an example.
 
-### Modify YAML file
+### 3. Modify YAML file
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
@@ -115,22 +115,36 @@ Remove the '#' to uncomment out:
 Afterwards, save the file. 
 
 
-## Recreate container
+## 4. Recreate container
 
 Now, the script or strategy will auto-start when you create the container:
 ```
 docker-compose up -d
 ```
 
-You can attach to the container to inspect it running. If you stop the bot, creating the container will start it again.
+You can attach to the container to inspect it running:
+```
+docker attach autostart_hummingbot_compose-bot-1
+```
+
 
 ## Useful Docker Commands
 
 Use the commands below or use the Docker Desktop application to manage your Hummingbot container:
 
-### Create the container
+### Create the Compose network
 ```
 docker-compose up -d
+```
+
+### Stop the Compose network
+```
+docker-compose down
+```
+
+### Update the Compose network for the latest images
+```
+docker-compose up --force-recreate --build -d
 ```
 
 ### Attach to the container
@@ -140,13 +154,7 @@ docker attach autostart_hummingbot_compose-bot-1
 
 ### Detach from the container and return to command line
 
-Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
-
-
-### Update the container to the latest image
-```
-docker-compose up --force-recreate --build -d
-```
+* Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
 
 ### List all containers
 ```
