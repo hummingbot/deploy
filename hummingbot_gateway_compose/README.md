@@ -1,6 +1,6 @@
 # Deploy Hummingbot and Gateway Instances
 
-This installs [Hummingbot](https://github.com/hummingbot/hummingbot) and [Hummingbot Gateway](https://github.com/hummingbot/gateway) as linked Docker containers.
+This installs a [Hummingbot](https://github.com/hummingbot/hummingbot) instance linked to a [Hummingbot Gateway](https://github.com/hummingbot/gateway) instance.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ If you have a recent Mac that uses Apple Silicon (M1/M2) chipset or another ARM-
 
 Use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file. Change the tag for **both** the Hummingbot and Gateway images from `latest` to `latest-arm` to pull the images built for ARM-based machines. 
 
-You can also comment out the lines that contains `latest` and uncomment the lines that contains `latest-arm`:
+You can also comment out the each line that contains `latest` and uncomment each line that contains `latest-arm`:
 ```
 # image: hummingbot/hummingbot:latest
 image: hummingbot/hummingbot:latest-arm
@@ -83,8 +83,11 @@ You'll be prompted for a passphrase used to generate the certificates. This is t
 
 Afterwards, Hummingbot will use the passphrase to generate the certificates and save them in the `hummingbot_files/certs` folder, where the Gateway instance will look for the certificates it needs.
 
-Now, run `stop` to exit the client. Once you're back in Bash/Terminal, run the following command to remove the network:
+Now, run `exit` to exit the client. 
 
+### 2. Remove network
+
+Once you're back in Bash/Terminal, run the following command to remove the Compose network:
 ```
 docker-compose down
 ```
@@ -96,7 +99,7 @@ You should see the following output:
  ⠿ Network hummingbot_gateway_compose_default                    Removed
 ```  
 
-### 2. Modify YAML file
+### 3. Modify YAML file
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
@@ -110,7 +113,7 @@ Remove the '#' to uncomment out:
  * The `environment:` line
  * The `GATEWAY_PASSPHRASE` line: add the passphrase you used to generate the certificates
 
- The final `environment` section of the YAML file should look like this:
+The final `environment` section of the YAML file should look like this:
 ```yaml
     environment:
       - GATEWAY_PASSPHRASE=[passphrase]
@@ -118,9 +121,9 @@ Remove the '#' to uncomment out:
 
 Afterwards, save the file.
 
-### 3. Recreate container
+### 4. Recreate network
 
-Now, restart the container
+Now, recreate the Compose network:
 ```
 docker-compose up -d
 ```
@@ -142,12 +145,12 @@ See [Gateway](https://docs.hummingbot.org/gateway/) for more details on how to c
 
 Use the commands below or use the Docker Desktop application to manage your Hummingbot and Gateway container:
 
-### Create the Compose network
+### Create/Launch Compose network
 ```
 docker-compose up -d
 ```
 
-### Stop the Compose network
+### Remove the Compose network
 ```
 docker-compose down
 ```

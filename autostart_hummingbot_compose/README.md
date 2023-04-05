@@ -70,9 +70,9 @@ You should see the Hummingbot welcome screen:
 
 ![welcome screen](../welcome.png)
 
-Set your Hummingbot [password](https://docs.hummingbot.org/operation/password/) and write it down. This is the `CONFIG_PASSWORD` environment variable in your `docker-compose.yml` file. 
+Set your Hummingbot [password](https://docs.hummingbot.org/operation/password/) and write it down. This is the `CONFIG_PASSWORD` environment variable in your `docker-compose.yml` file.
 
-### 2. Define script or strategy config file
+### 2. Define script/strategy file
 
 You can auto-start either a Script or a Strategy.
 
@@ -115,9 +115,9 @@ Remove the '#' to uncomment out:
 Afterwards, save the file. 
 
 
-## 4. Recreate container
+### 4. Launch network
 
-Now, the script or strategy will auto-start when you create the container:
+Now, the script or strategy will auto-start when you restart the Compose network
 ```
 docker-compose up -d
 ```
@@ -132,12 +132,12 @@ docker attach autostart_hummingbot_compose-bot-1
 
 Use the commands below or use the Docker Desktop application to manage your Hummingbot container:
 
-### Create the Compose network
+### Create/launch Compose network
 ```
 docker-compose up -d
 ```
 
-### Stop the Compose network
+### Remove the Compose network
 ```
 docker-compose down
 ```
