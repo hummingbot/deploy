@@ -184,6 +184,11 @@ docker-compose down
 docker-compose up --force-recreate --build -d
 ```
 
+### Give all users read/write permissions to local files
+```
+sudo chmod 666 *.*
+```
+
 ### Attach to the Hummingbot container
 ```
 docker attach hummingbot_gateway_broker_compose-bot-1

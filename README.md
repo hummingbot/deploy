@@ -18,14 +18,19 @@ Docker Desktop is available on:
 * [Mac](https://docs.docker.com/desktop/install/mac-install/)
 * [Windows](https://docs.docker.com/desktop/install/windows-install/)
 
-## Why does this repo contain?
+## How do I use this repo?
 
-Each folder showcases a different deployment type, such as running Hummingbot standalone, Hummingbot + Gateway, multiple instances, etc. The important files in each folder are:
+Each folder showcases a different deployment type, such as:
+* A single Hummingbot instance
+* A single Hummingbot instance that auto-starts a strategy or script
+* Linked Hummingbot and Gateway instances
+* Multiple instances of Hummingbot
 
+The important files in each folder are:
 * `docker-compose.yml`: A sample configuration file for that deployment type
 * `README.md`: A detailed README file that guides users through the steps required to deploy Hummingbot using Docker, including how to build and run the containers, how to configure the bot, and how to monitor its performance.
 
-## Deployment Types
+## Deployment types using Docker Compose
 
 ### [Simple Hummingbot Compose](./simple_hummingbot_compose)
 

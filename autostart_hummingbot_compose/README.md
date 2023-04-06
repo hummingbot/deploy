@@ -147,6 +147,11 @@ docker-compose down
 docker-compose up --force-recreate --build -d
 ```
 
+### Give all users read/write permissions to local files
+```
+sudo chmod 666 *.*
+```
+
 ### Attach to the container
 ```
 docker attach autostart_hummingbot_compose-bot-1
