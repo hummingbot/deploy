@@ -58,22 +58,22 @@ docker-compose up -d
 After the images have been downloaded, you should see the following output:
 ```
 [+] Running 4/4
- ⠿ Network hummingbot_gateway_compose_default                 Created
- ⠿ Container hummingbot_gateway_compose-bot-1                 Started
- ⠿ Container docker attach hummingbot_gateway_compose-bot2-1  Started
- ⠿ Container hummingbot_gateway_compose-gateway-1             Started       
+ ⠿ Network multiple_hummingbot_gateway_compose_default        Created
+ ⠿ Container multiple_hummingbot_gateway_compose-bot-1        Started
+ ⠿ Container multiple_hummingbot_gateway_compose-bot2-1       Started
+ ⠿ Container multiple_hummingbot_gateway_compose-gateway-1    Started       
 ```
 
 Attach to the `bot1` Hummingbot instance:
 ```
-docker attach hummingbot_gateway_compose-bot-1
+docker attach multiple_hummingbot_gateway_compose-bot-1
 ```
 
 You should see the Hummingbot welcome screen:
 
 ![welcome screen](../welcome.png)
 
-Set your [password](https://docs.hummingbot.org/operation/password/), which will be used to encrypt any keys you store with Hummingbot. This is the `CONFIG_PASSWORD` environment variable in your `docker-compose.yml` file used by `bot2`.
+Set your [password](https://docs.hummingbot.org/operation/password/), which will be used to encrypt any keys you store with Hummingbot. This is the `CONFIG_PASSWORD` environment variable in your `docker-compose.yml` file.
 
 Afterwards, run the following command to generate Gateway certificates:
 ```
@@ -95,10 +95,11 @@ docker-compose down
 
 You should see the following output:
 ```
-[+] Running 4/4 ⠿ Container hummingbot_gateway_compose-gateway-1 Removed
- ⠿ Container hummingbot_gateway_compose-bot-1                    Removed
- ⠿ Container docker attach hummingbot_gateway_compose-bot2-1     Removed
- ⠿ Network hummingbot_gateway_compose_default                    Removed
+[+] Running 4/3 
+ ⠿ Container multiple_hummingbot_gateway_compose-bot-1           Removed
+ ⠿ Container multiple_hummingbot_gateway_compose-bot2-1          Removed
+ ⠿ Container multiple_hummingbot_gateway_compose-gateway-1       Removed
+ ⠿ Network multiple_hummingbot_gateway_compose_default           Removed
 ```  
 
 ### 3. Modify YAML file
@@ -107,6 +108,9 @@ Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docke
 
 We'll edit the section that defines the following environment variables:
 ```yaml
+bot:
+  # environment:
+    #  - CONFIG_PASSWORD=[password]
 bot2:
   # environment:
     #  - CONFIG_PASSWORD=[password]
@@ -122,6 +126,9 @@ Remove the '#' to uncomment out:
 
 The final `environment` section of the YAML file should look like this:
 ```yaml
+bot:
+  environment:
+    - CONFIG_PASSWORD=[password]
 bot2:
   environment:
     - CONFIG_PASSWORD=[password]
@@ -139,20 +146,21 @@ Now, recreate the Compose network:
 docker-compose up -d
 ```
 
-Attach to the `bot` Hummingbot instance:
+Attach to the `bot` Hummingbot instance. Note that since you have defined `CONFIG_PASSWORD` in the YAML file, you don't need to enter it again:
 ```
-docker attach hummingbot_gateway_compose-bot-1
+docker attach multiple_hummingbot_gateway_compose-bot-1
 ```
 
-Attach to the `bot2` Hummingbot instance:
+Similarly, you can attach to the `bot2` Hummingbot instance, which also uses `CONFIG_PASSWORD`
 ```
-docker attach hummingbot_gateway_compose-bot2-1
+docker attach multiple_hummingbot_gateway_compose-bot2-1
 ```
 
 Open a new Terminal/Bash window. In it, attach to the Gateway instance to see its logs:
 ```
-docker attach hummingbot_gateway_compose-gateway-1
+docker attach multiple_hummingbot_gateway_compose-gateway-1
 ```
+
 See [Gateway](https://docs.hummingbot.org/gateway/) for more details on how to configure it for use with Hummingbot.
 
 
@@ -177,13 +185,13 @@ docker-compose up --force-recreate --build -d
 
 ### Attach to the Hummingbot containers
 ```
-docker attach hummingbot_gateway_compose-bot-1
-docker attach hummingbot_gateway_compose-bot2-1
+docker attach multiple_hummingbot_gateway_compose-gateway-1 
+docker attach multiple_hummingbot_gateway_compose-bot2-1
 ```
 
 ### Attach to the Gateway container
 ```
-docker attach hummingbot_gateway_compose-gateway-1
+docker attach multiple_hummingbot_gateway_compose-gateway-1
 ```
 
 ### Detach from the container and return to command line
