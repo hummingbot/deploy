@@ -34,7 +34,7 @@ If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-b
 
 ## Getting Started
 
-If you have installed Docker Compose successfully, the `docker-compose` command should be available in Terminal/Bash:
+In Terminal/Bash, run the following command to check that you have installed Docker Compose successfully:
 ```
 docker-compose
 ```
@@ -88,7 +88,7 @@ Now, run `exit` to exit the client.
 
 ### 2. Remove network
 
-Once you're back in Bash/Terminal, run the following command to remove the Compose network:
+Once you're back in Bash/Terminal, run the following command to remove the Compose project:
 ```
 docker-compose down
 ```
@@ -108,40 +108,40 @@ Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docke
 
 We'll edit the section that defines the following environment variables:
 ```yaml
-bot:
-  # environment:
-    #  - CONFIG_PASSWORD=[password]
-bot2:
-  # environment:
-    #  - CONFIG_PASSWORD=[password]
-gateway:
-  # environment:
-    #  - GATEWAY_PASSPHRASE=[passphrase]
+  bot:
+    # environment:
+      #  - CONFIG_PASSWORD=[password]
+  bot2:
+    # environment:
+      #  - CONFIG_PASSWORD=[password]
+  gateway:
+    # environment:
+      #  - GATEWAY_PASSPHRASE=[passphrase]
 ```
 
-Remove the '#' to uncomment out:
- * The two `environment:` lines
- * The `CONFIG_PASSWORD` line: add your Hummingbot password
+Uncomment out:
+ * The `environment:` lines
+ * The `CONFIG_PASSWORD` lines: add your Hummingbot password
  * The `GATEWAY_PASSPHRASE` line: add the passphrase you used to generate the certificates
 
 The final `environment` section of the YAML file should look like this:
 ```yaml
-bot:
-  environment:
-    - CONFIG_PASSWORD=[password]
-bot2:
-  environment:
-    - CONFIG_PASSWORD=[password]
-gateway:
-  environment:
-    - GATEWAY_PASSPHRASE=[passphrase]
+  bot:
+    environment:
+      - CONFIG_PASSWORD=[password]
+  bot2:
+    environment:
+      - CONFIG_PASSWORD=[password]
+  gateway:
+    environment:
+      - GATEWAY_PASSPHRASE=[passphrase]
 ```
 
 Afterwards, save the file.
 
 ### 4. Recreate network
 
-Now, recreate the Compose network:
+Now, recreate the Compose project:
 ```
 docker-compose up -d
 ```
@@ -166,19 +166,19 @@ See [Gateway](https://docs.hummingbot.org/gateway/) for more details on how to c
 
 ## Useful Docker Commands
 
-Use the commands below or use the Docker Desktop application to manage your Hummingbot and Gateway container:
+Use the commands below or use the Docker Desktop application to manage your containers:
 
-### Create/Launch Compose network
+### Create/Launch Compose project
 ```
 docker-compose up -d
 ```
 
-### Remove the Compose network
+### Remove the Compose project
 ```
 docker-compose down
 ```
 
-### Update the Compose network for the latest images
+### Update the Compose project for the latest images
 ```
 docker-compose up --force-recreate --build -d
 ```

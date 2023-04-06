@@ -29,7 +29,7 @@ If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-b
 
 ## Getting Started
 
-If you have installed Docker Compose successfully, the `docker-compose` command should be available in Terminal/Bash:
+In Terminal/Bash, run the following command to check that you have installed Docker Compose successfully:
 ```
 docker-compose
 ```
@@ -69,19 +69,19 @@ To get started with Hummingbot, check out the following docs:
 
 ## Useful Docker Commands
 
-Use the commands below or use the Docker Desktop application to manage your Hummingbot container:
+Use the commands below or use the Docker Desktop application to manage your containers:
 
-### Create the Compose network
+### Create the Compose project
 ```
 docker-compose up -d
 ```
 
-### Stop the Compose network
+### Stop the Compose project
 ```
 docker-compose down
 ```
 
-### Update the Compose network for the latest images
+### Update the Compose project for the latest images
 ```
 docker-compose up --force-recreate --build -d
 ```

@@ -29,7 +29,7 @@ If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-b
 
 ## Getting Started
 
-If you have installed Docker Compose successfully, the `docker-compose` command should be available in Terminal/Bash:
+In Terminal/Bash, run the following command to check that you have installed Docker Compose successfully:
 ```
 docker-compose
 ```
@@ -92,7 +92,7 @@ See [`conf_pure_mm_1.yml`](./hummingbot_files/conf/strategies/conf_pure_mm_1.yml
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
-We'll edit the section that defines the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME` environment variables:
+Edit the section that defines the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME` environment variables:
 ```yaml
     # environment:
       # - CONFIG_PASSWORD=[password]
@@ -100,7 +100,7 @@ We'll edit the section that defines the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME`
       # - CONFIG_FILE_NAME=conf_pure_mm_1.yml
 ```
 
-Remove the '#' to uncomment out:
+Uncomment out:
  * The `environment:` line
  * The `CONFIG_PASSWORD` line: add the password you set earlier,
  * One of `CONFIG_FILE_NAME` lines: add your script OR strategy config file
@@ -117,7 +117,7 @@ Afterwards, save the file.
 
 ### 4. Launch network
 
-Now, the script or strategy will auto-start when you restart the Compose network
+Now, the script or strategy will auto-start when you restart the Compose project
 ```
 docker-compose up -d
 ```
@@ -130,19 +130,19 @@ docker attach autostart_hummingbot_compose-bot-1
 
 ## Useful Docker Commands
 
-Use the commands below or use the Docker Desktop application to manage your Hummingbot container:
+Use the commands below or use the Docker Desktop application to manage your containers:
 
-### Create/launch Compose network
+### Create/launch Compose project
 ```
 docker-compose up -d
 ```
 
-### Remove the Compose network
+### Remove the Compose project
 ```
 docker-compose down
 ```
 
-### Update the Compose network for the latest images
+### Update the Compose project for the latest images
 ```
 docker-compose up --force-recreate --build -d
 ```
