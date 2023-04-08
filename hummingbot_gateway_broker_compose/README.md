@@ -38,7 +38,7 @@ If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-b
 
 In Terminal/Bash, run the following command to check that you have installed Docker Compose successfully:
 ```
-docker-compose
+docker compose
 ```
 
 You should see a response that start with:
@@ -54,7 +54,7 @@ To link the Hummingbot and Gateway instances, you first have to generate certifi
 
 Pull the latest Hummingbot and Gateway images and start instances with the following command:
 ```
-docker-compose up -d
+docker compose up -d
 ```
 
 After the images have been downloaded, you should see the following output:
@@ -92,7 +92,7 @@ Now, run `exit` to exit the client.
 
 Once you're back in Bash/Terminal, run the following command to remove the Compose project:
 ```
-docker-compose down
+docker compose down
 ```
 
 You should see the following output:
@@ -138,7 +138,7 @@ Afterwards, save the file.
 
 Now, recreate the Compose project:
 ```
-docker-compose up -d
+docker compose up -d
 ```
 
 Attach to the Hummingbot `bot` instance:
@@ -171,17 +171,17 @@ Use the commands below or use the Docker Desktop application to manage your cont
 
 ### Create/Launch Compose project
 ```
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Remove the Compose project
 ```
-docker-compose down
+docker compose down
 ```
 
 ### Update the Compose project for the latest images
 ```
-docker-compose up --force-recreate --build -d
+docker compose up --force-recreate --build -d
 ```
 
 ### Give all users read/write permissions to local files

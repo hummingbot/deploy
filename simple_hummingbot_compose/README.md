@@ -31,7 +31,7 @@ If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-b
 
 In Terminal/Bash, run the following command to check that you have installed Docker Compose successfully:
 ```
-docker-compose
+docker compose
 ```
 
 You should see a response that start with:
@@ -39,7 +39,14 @@ You should see a response that start with:
 Usage:  docker compose [OPTIONS] COMMAND
 ```
 
-Clone this repo or copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. This is where your encrypted keys, scripts, trades, configs, logs, and other files related to your bots will be saved.
+### 1. Launch network
+
+Clone this repo to your machine:
+```
+git clone https://github.com/hummingbot/deploy-examples.git
+```
+
+Alternatively, copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. This is where your encrypted keys, scripts, trades, configs, logs, and other files related to your bots will be saved.
 
 From that directory, run the following command to pull the image and start the instance:
 ```
@@ -49,17 +56,24 @@ docker-compose up -d
 After the images have been downloaded, you should see the following output:
 ```
 [+] Running 1/1
- ⠿ Container simple_hummingbot_compose-bot-1  Started 
+ ⠿ Container hummingbot  Started 
  ```
 
 Attach to the instance:
 ```
-docker attach simple_hummingbot_compose-bot-1
+docker attach hummingbot
 ```
 
 You should see the Hummingbot welcome screen:
 
 ![welcome screen](../welcome.png)
+
+### 2. Set permissions
+
+Run this command in root directory to grant read/write permission to the `hummingbot_files` folder:
+```
+sudo chmod -R a+rw ./hummingbot_files
+```
 
 To get started with Hummingbot, check out the following docs:
 
@@ -93,7 +107,7 @@ sudo chmod 666 *.*
 
 ### Attach to the container
 ```
-docker attach simple_hummingbot_compose-bot-1
+docker attach <container-name>
 ```
 
 ### Detach from the container and return to command line
@@ -113,10 +127,10 @@ docker ps -a
 
 ### Stop a container
 ```
-docker stop <instance-name>
+docker stop <container-name>
 ```
 
 ### Remove a container
 ```
-docker rm <instance-name>
+docker rm <container-name>
 ```

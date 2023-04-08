@@ -31,7 +31,7 @@ If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-b
 
 In Terminal/Bash, run the following command to check that you have installed Docker Compose successfully:
 ```
-docker-compose
+docker compose
 ```
 
 You should see a response that start with:
@@ -52,7 +52,7 @@ Auto-starting a script/strategy lets you start a bot from the command line, skip
 
 Pull the latest Hummingbot image and start it with the following command:
 ```
-docker-compose up -d
+docker compose up -d
 ```
 
 After the images have been downloaded, you should see the following output:
@@ -119,7 +119,7 @@ Afterwards, save the file.
 
 Now, the script or strategy will auto-start when you restart the Compose project
 ```
-docker-compose up -d
+docker compose up -d
 ```
 
 You can attach to the container to inspect it running:
@@ -132,19 +132,19 @@ docker attach autostart_hummingbot_compose-bot-1
 
 Use the commands below or use the Docker Desktop application to manage your containers:
 
-### Create/launch Compose project
+### Create/Launch Compose project
 ```
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Remove the Compose project
 ```
-docker-compose down
+docker compose down
 ```
 
 ### Update the Compose project for the latest images
 ```
-docker-compose up --force-recreate --build -d
+docker compose up --force-recreate --build -d
 ```
 
 ### Give all users read/write permissions to local files
@@ -167,13 +167,6 @@ docker ps -a
 ```
 
 ### Stop a container
-
-```
-docker-compose down
-```
-
-or:
-
 ```
 docker stop <instance-name>
 ```
