@@ -48,7 +48,8 @@ Clone this repo or copy the `docker-compose.yml` file to a directory on your mac
 
 To link the Hummingbot and Gateway instances, you first have to generate certificates within Hummingbot and set the `GATEWAY_PASSPHRASE` variable in the YAML file.
 
-### 1. Generate certificates
+
+### 1. Launch network
 
 Pull the latest Hummingbot and Gateway images and start instances with the following command:
 ```
@@ -58,12 +59,21 @@ docker compose up -d
 After the images have been downloaded, you should see the following output:
 ```
 [+] Running 3/3
- ⠿ Network hummingbot_gateway_compose_default      Created
- ⠿ Container hummingbot_gateway_compose-bot-1      Started
- ⠿ Container hummingbot_gateway_compose-gateway-1  Started       
+ ⠿ Network hummingbot_gateway_compose_default     Created
+ ⠿ Container hummingbot                           Started
+ ⠿ Container gateway                              Started       
 ```
 
-Attach to the Hummingbot `bot` instance:
+### 2. Set permissions
+
+Run this command in root directory to grant read/write permission to the `hummingbot_files` and `gateway_files` folders:
+```
+sudo chmod -R a+rw ./hummingbot_files ./gateway_files
+```
+
+### 3. Generate certificates
+
+Now, attach to the Hummingbot `bot` instance:
 ```
 docker attach hummingbot_gateway_compose-bot-1
 ```
@@ -85,7 +95,7 @@ Afterwards, Hummingbot will use the passphrase to generate the certificates and 
 
 Now, run `exit` to exit the client. 
 
-### 2. Remove network
+### 4. Remove network
 
 Once you're back in Bash/Terminal, run the following command to remove the Compose project:
 ```
@@ -94,12 +104,13 @@ docker compose down
 
 You should see the following output:
 ```
-[+] Running 3/3 ⠿ Container hummingbot_gateway_compose-gateway-1 Removed
- ⠿ Container hummingbot_gateway_compose-bot-1                    Removed
- ⠿ Network hummingbot_gateway_compose_default                    Removed
+[+] Running 3/3 
+ ⠿ Container gateway                            Removed
+ ⠿ Container hummingbot                         Removed
+ ⠿ Network hummingbot_gateway_compose_default   Removed
 ```  
 
-### 3. Modify YAML file
+### 5. Modify YAML file
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
@@ -130,22 +141,22 @@ The final `environment` section of the YAML file should look like this:
 
 Afterwards, save the file.
 
-### 4. Recreate network
+### 6. Recreate network
 
 Now, recreate the Compose project:
 ```
 docker compose up -d
 ```
 
-Attach to the Hummingbot `bot` instance:
+Attach to the `hummingbot` instance:
 ```
-docker attach hummingbot_gateway_compose-bot-1
+docker attach hummingbot
 ```
 After you enter your password, you should now see `GATEWAY:ONLINE` in the upper-right hand corner.
 
-Open a new Terminal/Bash window. In it, attach to the Gateway `gateway` instance to see its logs:
+Open a new Terminal/Bash window. In it, attach to the `gateway` instance to see its logs:
 ```
-docker attach hummingbot_gateway_compose-gateway-1
+docker attach gateway
 ```
 See [Gateway](https://docs.hummingbot.org/gateway/) for more details on how to configure it for use with Hummingbot.
 
@@ -174,17 +185,12 @@ docker compose up --force-recreate --build -d
 sudo chmod 666 *.*
 ```
 
-### Attach to the Hummingbot container
+### Attach to a container
 ```
-docker attach hummingbot_gateway_compose-bot-1
-```
-
-### Attach to the Gateway container
-```
-docker attach hummingbot_gateway_compose-gateway-1
+docker attach <container-name>
 ```
 
-### Detach from the container and return to command line
+### Detach from a container and return to command line
 
 * Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
 
@@ -195,10 +201,10 @@ docker ps -a
 
 ### Stop a container
 ```
-docker stop <instance-name>
+docker stop <container-name>
 ```
 
 ### Remove a container
 ```
-docker rm <instance-name>
+docker rm <container-name>
 ```
