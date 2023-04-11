@@ -50,7 +50,7 @@ Alternatively, copy the `docker-compose.yml` file to a directory on your machine
 
 From that directory, run the following command to pull the image and start the instance:
 ```
-docker-compose up -d
+docker compose up -d
 ```
 
 After the images have been downloaded, you should see the following output:
@@ -87,17 +87,17 @@ Use the commands below or use the Docker Desktop application to manage your cont
 
 ### Create the Compose project
 ```
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Stop the Compose project
 ```
-docker-compose down
+docker compose down
 ```
 
 ### Update the Compose project for the latest images
 ```
-docker-compose up --force-recreate --build -d
+docker compose up --force-recreate --build -d
 ```
 
 ### Give all users read/write permissions to local files
@@ -117,7 +117,7 @@ Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
 
 ### Update the container to the latest image
 ```
-docker-compose up --force-recreate --build -d
+docker compose up --force-recreate --build -d
 ```
 
 ### List all containers
