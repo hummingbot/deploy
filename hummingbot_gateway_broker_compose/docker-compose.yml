@@ -1,6 +1,7 @@
 version: "3.9"
 services:
-  bot:
+  hummingbot:
+    container_name: "hummingbot"
     image: hummingbot/hummingbot:latest
     # image: hummingbot/hummingbot:latest-arm
     volumes:
@@ -11,6 +12,8 @@ services:
       - "./hummingbot_files/data:/data"
       - "./hummingbot_files/scripts:/scripts"
       - "./hummingbot_files/certs:/certs"
+    # environment:
+    #   - CONFIG_PASSWORD=[password]
     logging:
       driver: "json-file"
       options:
@@ -21,6 +24,7 @@ services:
     network_mode: host
 
   gateway:
+    container_name: "gateway"
     image: hummingbot/gateway:latest
     # image: hummingbot/gateway:latest-arm
     ports:
@@ -34,6 +38,7 @@ services:
     #   - GATEWAY_PASSPHRASE=[passphrase]
 
   emqx:
+    container_name: "emqx"
     image: emqx:5
     restart: unless-stopped
     environment:
