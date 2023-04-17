@@ -19,3 +19,5 @@ venv.bak/
 
 **/gateway_files/*
 **/hummingbot_files/*
+
+**/.DS_Store

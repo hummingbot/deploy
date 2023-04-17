@@ -1,6 +1,7 @@
 version: "3.9"
 services:
-  bot:
+  hummingbot-1:
+    container_name: "hummingbot-1"
     image: hummingbot/hummingbot:latest
     # image: hummingbot/hummingbot:latest-arm
     volumes:
@@ -22,7 +23,8 @@ services:
     stdin_open: true
     network_mode: host
 
-  bot2:
+  hummingbot-2:
+    container_name: "hummingbot-2"
     image: hummingbot/hummingbot:latest
     # image: hummingbot/hummingbot:latest-arm
     volumes:
@@ -45,6 +47,7 @@ services:
     network_mode: host
 
   gateway:
+    container_name: "gateway"
     image: hummingbot/gateway:latest
     # image: hummingbot/gateway:latest-arm
     ports:

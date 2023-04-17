@@ -1,6 +1,7 @@
 version: "3.9"
 services:
-  bot:
+  hummingbot:
+    container_name: "hummingbot"
     image: hummingbot/hummingbot:latest
     # image: hummingbot/hummingbot:latest-arm
     volumes:
