@@ -36,12 +36,15 @@ Usage:  docker compose [OPTIONS] COMMAND
 
 ### 1. Launch network
 
-Clone this repo to your machine:
+Clone this repo to your machine and go to the folder:
 ```
 git clone https://github.com/hummingbot/deploy-examples.git
+cd deploy-examples
 ```
 
-Alternatively, copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. This is the "root folder" where your encrypted keys, scripts, trades, configs, logs, and other files related to your bots will be saved.
+Alternatively, copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. 
+
+This is the "root folder" where your encrypted keys, scripts, trades, configs, logs, and other files related to your bots will be saved.
 
 From the root folder, run the following command to pull the image and start the instance:
 ```
