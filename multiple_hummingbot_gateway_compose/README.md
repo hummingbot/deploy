@@ -143,10 +143,10 @@ Uncomment out:
 
 The final `environment` section of the YAML file should look like this:
 ```yaml
-  bot:
+  hummingbot-1:
     environment:
       - CONFIG_PASSWORD=[password]
-  bot2:
+  hummingbot-2:
     environment:
       - CONFIG_PASSWORD=[password]
   gateway:
