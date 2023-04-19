@@ -6,12 +6,7 @@ This installs a single [Hummingbot](https://github.com/hummingbot/hummingbot) in
 
 This configuration requires [Docker Compose](https://docs.docker.com/compose/), a tool for defining and running multi-container Docker applications. The recommended way to get Docker Compose is to install [Docker Desktop](https://www.docker.com/products/docker-desktop/), which includes Docker Compose along with Docker Engine and Docker CLI which are Compose prerequisites.
 
-Docker Desktop is available on:
-
-* [Linux](https://docs.docker.com/desktop/install/linux-install/)
-* [Mac](https://docs.docker.com/desktop/install/mac-install/)
-* [Windows](https://docs.docker.com/desktop/install/windows-install/)
-
+See [Docker](../DOCKER.md) for more information about how to install and use Docker Compose, as well as helpful commands.
 
 ## Apple M1/M2 and other ARM machines
 
@@ -29,7 +24,14 @@ If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-b
 
 ## Getting Started
 
-In Terminal/Bash, run the following command to check that you have installed Docker Compose successfully:
+Auto-starting a script/strategy lets you start a bot from the command line, skipping the Hummingbot UI. 
+
+To enable this, you will do need a few things first:
+- Install and configure the Hummingbot instance
+- Set the password used to encrypt your keys (`CONFIG_PASSWORD`)
+- Define your script or strategy config file that you want to auto-start (`CONFIG_FILE_NAME`)
+
+First, let's check that you have installed Docker Compose successfully. In Terminal/Bash, Run the following command:
 ```
 docker compose
 ```
@@ -39,18 +41,19 @@ You should see a response that start with:
 Usage:  docker compose [OPTIONS] COMMAND
 ```
 
+### 1. Launch network
 
-Clone this repo or copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. This is where your encrypted keys, scripts, trades, configs, logs, and other files related to your bots will be saved.
+Clone this repo to your machine and go to the folder:
+```
+git clone https://github.com/hummingbot/deploy-examples.git
+cd deploy-examples
+```
 
----
+Alternatively, copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. 
 
-Auto-starting a script/strategy lets you start a bot from the command line, skipping the Hummingbot UI. However, before you can auto-start a script or strategy, you will do need two things first:
-1. Set the password used to encrypt your keys (`CONFIG_PASSWORD`)
-2. Define your script or strategy config file (`CONFIG_FILE_NAME`)
+This is the "root folder" where your encrypted keys, scripts, trades, configs, logs, and other files related to your bots will be saved.
 
-### 1. Set Hummingbot password
-
-Pull the latest Hummingbot image and start it with the following command:
+From the root folder, run the following command to pull the image and start the instance:
 ```
 docker compose up -d
 ```
@@ -58,12 +61,22 @@ docker compose up -d
 After the images have been downloaded, you should see the following output:
 ```
 [+] Running 1/1
- ⠿ Container autostart_hummingbot_compose-bot-1  Started 
+ ⠿ Container hummingbot       Started 
  ```
 
-Attach to the instance:
+### 3. Set permissions
+
+Run this command from your root folder to grant read/write permission to the `hummingbot_files` sub-folder:
 ```
-docker attach autostart_hummingbot_compose-bot-1
+sudo chmod -R a+rw ./hummingbot_files
+```
+
+
+### 4. Launch Hummingbot and set password
+
+Now, attach to the `hummingbot` instance:
+```
+docker attach hummingbot
 ```
 
 You should see the Hummingbot welcome screen:
@@ -72,23 +85,17 @@ You should see the Hummingbot welcome screen:
 
 Set your Hummingbot [password](https://docs.hummingbot.org/operation/password/) and write it down. This is the `CONFIG_PASSWORD` environment variable in your `docker-compose.yml` file.
 
-### 2. Define script/strategy file
+Afterwards, run `exit` to exit Hummingbot. 
 
-You can auto-start either a Script or a Strategy.
 
-[Scripts](https://docs.hummingbot.org/scripts/) are Python files that contain all strategy logic. 
+### 4. Define script/strategy file
 
-If you define a `.py` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a script file and looks for the `.py` file in the `hummingbot_files/scripts` directory. 
+You can auto-start either a Script or a Strategy:
 
-See [`simple_pmm_example.py`](./hummingbot_files/scripts/simple_pmm_example.py) for an example.
+* [Scripts](https://docs.hummingbot.org/scripts/) are Python files that contain all strategy logic. If you define a `.py` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a script file and looks for the `.py` file in the `hummingbot_files/scripts` directory. See [`simple_pmm_example.py`](./hummingbot_files/scripts/simple_pmm_example.py) for an example.
+* [Strategies](https://docs.hummingbot.org/strategies/) are configurable strategy templates. If you define a `.yml` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a strategy config file and looks for the `.yml` file in the `hummingbot_files/conf/strategies` directory. See [`conf_pure_mm_1.yml`](./hummingbot_files/conf/strategies/conf_pure_mm_1.yml) for an example.
 
-[Strategies](https://docs.hummingbot.org/strategies/) are configurable strategy templates. 
-
-If you define a `.yml` file as `CONFIG_FILE_NAME`, Hummingbot assumes it's a strategy config file and looks for the `.yml` file in the `hummingbot_files/conf/strategies` directory. 
-
-See [`conf_pure_mm_1.yml`](./hummingbot_files/conf/strategies/conf_pure_mm_1.yml) for an example.
-
-### 3. Modify YAML file
+### 5. Modify YAML file
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
@@ -112,66 +119,17 @@ Uncomment out:
       - CONFIG_FILE_NAME=simple_pmm_example.py
 ```
 
-Afterwards, save the file. 
+Afterwards, save the file.
 
+### 6. Relaunch Hummingbot
 
-### 4. Launch network
-
-Now, the script or strategy will auto-start when you restart the Compose project
+Restart the container using your new YAML file:
 ```
-docker compose up -d
-```
-
-You can attach to the container to inspect it running:
-```
-docker attach autostart_hummingbot_compose-bot-1
+docker stop hummingbot
+docker start hummingbot
 ```
 
-
-## Useful Docker Commands
-
-Use the commands below or use the Docker Desktop application to manage your containers:
-
-### Create/Launch Compose project
+When you attach to it, the strategy or script should already be running:
 ```
-docker compose up -d
-```
-
-### Remove the Compose project
-```
-docker compose down
-```
-
-### Update the Compose project for the latest images
-```
-docker compose up --force-recreate --build -d
-```
-
-### Give all users read/write permissions to local files
-```
-sudo chmod 666 *.*
-```
-
-### Attach to the container
-```
-docker attach autostart_hummingbot_compose-bot-1
-```
-
-### Detach from the container and return to command line
-
-* Press keys <kbd>Ctrl</kbd> + <kbd>P</kbd> then <kbd>Ctrl</kbd> + <kbd>Q</kbd>
-
-### List all containers
-```
-docker ps -a
-```
-
-### Stop a container
-```
-docker stop <instance-name>
-```
-
-### Remove a container
-```
-docker rm <instance-name>
+docker attach hummingbot
 ```
