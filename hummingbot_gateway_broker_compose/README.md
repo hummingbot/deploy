@@ -55,7 +55,7 @@ Usage:  docker compose [OPTIONS] COMMAND
 Clone this repo to your machine and go to the folder:
 ```
 git clone https://github.com/hummingbot/deploy-examples.git
-cd deploy-examples
+cd deploy-examples/hummingbot_gateway_broker_compose
 ```
 
 Alternatively, copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. 
