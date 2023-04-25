@@ -1,0 +1,10 @@
+# Dockerfile-Windows
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
+
+# Install necessary dependencies
+# Add any other dependencies your script requires
+
+# Copy the scripts to the Docker image
+COPY ../bash_scripts/ /usr/local/bin/
+RUN powershell.exe -Command "Set-ExecutionPolicy Bypass -Scope Process -Force"
+

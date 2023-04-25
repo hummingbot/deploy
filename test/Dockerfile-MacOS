@@ -1,0 +1,9 @@
+# Dockerfile-MacOS
+FROM mcr.microsoft.com/powershell:latest
+
+# Install necessary dependencies
+RUN pwsh -c "Install-Module -Name Pscx -AllowClobber -Scope AllUsers -Force"
+
+# Copy the scripts to the Docker image
+COPY ../bash_scripts/ /usr/local/bin/
+RUN chmod +x /usr/local/bin/*.sh

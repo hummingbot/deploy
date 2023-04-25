@@ -1,0 +1,73 @@
+name: Shell Script Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      # ...
+      - name: Build Docker image for Linux
+        uses: docker/build-push-action@v2
+        with:
+          context: ./tests
+          file: ./tests/Dockerfile-Linux
+          push: false
+          tags: my_script_test:linux-latest
+
+  build-macos:
+    runs-on: ubuntu-latest
+    steps:
+      # ...
+      - name: Build Docker image for macOS
+        uses: docker/build-push-action@v2
+        with:
+          context: ./tests
+          file: ./tests/Dockerfile-MacOS
+          push: false
+          tags: my_script_test:macos-latest
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      # ...
+      - name: Build Docker image for Windows
+        uses: docker/build-push-action@v2
+        with:
+          context: ./tests
+          file: ./tests/Dockerfile-Windows
+          push: false
+          tags: my_script_test:windows-latest
+
+  test-linux:
+    runs-on: ubuntu-latest
+    needs: build-linux
+    steps:
+      # ...
+      - name: Run test suite for Linux
+        run: |
+          docker run --rm my_script_test:linux-latest /usr/local/bin/test_suite.sh
+
+  test-macos:
+    runs-on: macos-latest
+    needs: build-macos
+    steps:
+      # ...
+      - name: Run test suite for macOS
+        run: |
+          docker run --rm my_script_test:macos-latest /usr/local/bin/test_suite.sh
+
+  test-windows:
+    runs-on: windows-latest
+    needs: build-windows
+    steps:
+      # ...
+      - name: Run test suite for Windows
+        run: |
+          docker run --rm my_script_test:windows-latest /usr/local/bin/test_suite.sh

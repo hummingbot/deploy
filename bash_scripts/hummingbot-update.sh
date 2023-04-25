@@ -1,6 +1,7 @@
 #!/bin/bash
-# init
 # =============================================
+
+source "$(dirname "$0")/folder-structure.sh"
 
 # Specify hummingbot version
 select_version () {
@@ -102,17 +103,10 @@ execute_docker () {
  j="0"
  for instance in "${INSTANCES[@]}"
  do
+   DOCKER_VOLUME_ARGS=$(build_docker_volume_args "FOLDERS[$j]")
    docker run -itd --log-opt max-size=10m --log-opt max-file=5 \
    --network host \
-   --name ${INSTANCES[$j]} \
-    -v ${FOLDERS[$j]}/conf:/conf \
-    -v ${FOLDERS[$j]}/conf/connectors:/conf/connectors \
-    -v ${FOLDERS[$j]}/conf/strategies:/conf/strategies \
-    -v ${FOLDERS[$j]}/logs:/logs \
-    -v ${FOLDERS[$j]}/data:/data \
-    -v ${FOLDERS[$j]}/pmm-scripts:/pmm-scripts \
-    -v ${FOLDERS[$j]}/scripts:/scripts \
-    -v ${FOLDERS[$j]}/certs:/certs \
+   --name ${INSTANCES[$j]} $DOCKER_VOLUME_ARGS \
    hummingbot/hummingbot:$TAG
    j=$[$j+1]
    # Update file ownership
@@ -126,25 +120,31 @@ execute_docker () {
  echo
 }
 
-select_version
-list_instances
-if [ "$CONTINUE" == "Y" ]
-then
- # Store instance names in an array
- declare -a INSTANCES
- INSTANCES=( $(docker ps -a --filter ancestor=hummingbot/hummingbot:$TAG --format "{{.Names}}") )
- list_dir
- declare -a FOLDERS
- prompt_folder
- confirm_update
- if [ "$PROCEED" == "Y" ]
- then
-   execute_docker
- else
-   echo "   Update aborted"
-   echo
- fi
-else
-  echo "   Update aborted"
-  echo
+main(){
+  select_version
+  list_instances
+  if [ "$CONTINUE" == "Y" ]
+  then
+   # Store instance names in an array
+   declare -a INSTANCES
+   INSTANCES=( $(docker ps -a --filter ancestor=hummingbot/hummingbot:$TAG --format "{{.Names}}") )
+   list_dir
+   declare -a FOLDERS
+   prompt_folder
+   confirm_update
+   if [ "$PROCEED" == "Y" ]
+   then
+     execute_docker
+   else
+     echo "   Update aborted"
+     echo
+   fi
+  else
+    echo "   Update aborted"
+    echo
+  fi
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
 fi

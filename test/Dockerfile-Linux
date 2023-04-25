@@ -1,0 +1,13 @@
+# Dockerfile
+FROM ubuntu:latest
+
+# Install necessary dependencies
+RUN apt-get update && \
+    apt-get install -y \
+        curl \
+        jq \
+        # Add any other dependencies your script requires
+
+# Copy the scripts to the Docker image
+COPY ../bash_scripts/ /usr/local/bin/
+RUN chmod +x /usr/local/bin/*.sh
