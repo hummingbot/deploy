@@ -9,41 +9,46 @@ on:
       - main
 
 jobs:
-  build-linux:
+  scripts-behave-test:
     runs-on: ubuntu-latest
     steps:
-      # ...
-      - name: Build Docker image for Linux
-        uses: docker/build-push-action@v2
-        with:
-          context: ./tests
-          file: ./tests/Dockerfile-Linux
-          push: false
-          tags: my_script_test:linux-latest
+    - name: Check out repository code
+      uses: actions/checkout@v4
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+    - name: Install dependencies
+      run: |
+        conda install -c conda-forge -y behave
 
-  build-macos:
-    runs-on: ubuntu-latest
-    steps:
-      # ...
-      - name: Build Docker image for macOS
-        uses: docker/build-push-action@v2
-        with:
-          context: ./tests
-          file: ./tests/Dockerfile-MacOS
-          push: false
-          tags: my_script_test:macos-latest
+    - name: Run Hummingbot tests
+      run: |
+        (cd behaviors; behave)
 
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      # ...
-      - name: Build Docker image for Windows
-        uses: docker/build-push-action@v2
-        with:
-          context: ./tests
-          file: ./tests/Dockerfile-Windows
-          push: false
-          tags: my_script_test:windows-latest
+#  build-macos:
+#    runs-on: ubuntu-latest
+#    steps:
+#      # ...
+#      - name: Build Docker image for macOS
+#        uses: docker/build-push-action@v2
+#        with:
+#          context: ./tests
+#          file: ./tests/Dockerfile-MacOS
+#          push: false
+#          tags: my_script_test:macos-latest
+#
+#  build-windows:
+#    runs-on: windows-latest
+#    steps:
+#      # ...
+#      - name: Build Docker image for Windows
+#        uses: docker/build-push-action@v2
+#        with:
+#          context: ./tests
+#          file: ./tests/Dockerfile-Windows
+#          push: false
+#          tags: my_script_test:windows-latest
 
   test-linux:
     runs-on: ubuntu-latest
@@ -54,20 +59,21 @@ jobs:
         run: |
           docker run --rm my_script_test:linux-latest /usr/local/bin/test_suite.sh
 
-  test-macos:
-    runs-on: macos-latest
-    needs: build-macos
-    steps:
-      # ...
-      - name: Run test suite for macOS
-        run: |
-          docker run --rm my_script_test:macos-latest /usr/local/bin/test_suite.sh
-
-  test-windows:
-    runs-on: windows-latest
-    needs: build-windows
-    steps:
-      # ...
-      - name: Run test suite for Windows
-        run: |
-          docker run --rm my_script_test:windows-latest /usr/local/bin/test_suite.sh
+#  test-macos:
+#    runs-on: macos-latest
+#    needs: build-macos
+#    steps:
+#      # ...
+#      - name: Run test suite for macOS
+#        run: |
+#          docker run --rm my_script_test:macos-latest /usr/local/bin/test_suite.sh
+#
+#  test-windows:
+#    runs-on: windows-latest
+#    needs: build-windows
+#    steps:
+#      # ...
+#      - name: Run test suite for Windows
+#        run: |
+#          docker run --rm my_script_test:windows-latest /usr/local/bin/test_suite.sh
+#

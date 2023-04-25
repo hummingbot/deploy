@@ -1,0 +1,20 @@
+name: Shell Script Behaviors
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  scripts-behave-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v4
+
+    - name: Run Hummingbot tests
+      run: |
+        (cd tests; chmod +x test_suite.sh; ./test_suite.sh)
