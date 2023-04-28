@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  bot:
+    container_name: hummingbot
+    image: dardonacci/hummingbot:multiarch
+    volumes:
+      - ./hummingbot_files/conf:/home/hummingbot/conf
+      - ./hummingbot_files/conf/connectors:/home/hummingbot/conf/connectors
+      - ./hummingbot_files/conf/strategies:/home/hummingbot/conf/strategies
+      - ./hummingbot_files/logs:/home/hummingbot/logs
+      - ./hummingbot_files/data:/home/hummingbot/data
+    logging:
+      driver: "json-file"
+      options:
+          max-size: "10m"
+          max-file: 5
+    tty: true
+    stdin_open: true
+    network_mode: host
+  dashboard:
+    container_name: dashboard
+    image: dardonacci/streamlit-apps:latest
+    volumes:
+      - ./hummingbot_files/data:/home/streamlit-apps/data
+    ports:
+      - "8501:8501"
