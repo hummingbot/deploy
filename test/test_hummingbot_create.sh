@@ -1,24 +1,6 @@
 #!/bin/bash
 
-source $(dirname "$0")/../bash_scripts/folder_structure.sh
-
-# Test default values
-test_ask() {
-  # Test default value
-  DEFAULT_VALUE=$(echo "" | ../bash_scripts/hummingbot-create.sh --test ask "Enter a value (default = \"default_value\") >>> " "default_value")
-  if [ "$DEFAULT_VALUE" != "default_value" ]; then
-    echo "FAIL: ask(): Default value should be 'default_value'"
-    exit 1
-  fi
-
-  # Test custom value
-  CUSTOM_VALUE=$(echo "custom_value" | ../bash_scripts/hummingbot-create.sh --test ask "Enter a value (default = \"default_value\") >>> " "default_value")
-  if [ "$CUSTOM_VALUE" != "custom_value" ]; then
-    echo "FAIL: ask(): Custom value should be 'custom_value'"
-    exit 1
-  fi
-  echo "PASS: ask()"
-}
+source $(dirname "$0")/../bash_scripts/folder-structure.sh
 
 test_print_folder_structure() {
   INSTANCE_NAME="test_instance"
@@ -58,36 +40,6 @@ EOM
   echo "PASS: print_folder_structure()"
 }
 
-test_prompt_proceed() {
-  local input="Y"
-  local expected_output="Y"
-  local actual_output=$(printf "$input\n" | ../bash_scripts/hummingbot-create.sh --test prompt_proceed)
-
-  if [ "$actual_output" != "$expected_output" ]; then
-    echo "FAIL: test_prompt_proceed(): input: '$input', expected: '$expected_output', actual: '$actual_output'"
-    exit 1
-  fi
-
-  input="N"
-  expected_output="N"
-  actual_output=$(printf "$input\n" | ../bash_scripts/hummingbot-create.sh --test prompt_proceed)
-
-  if [ "$actual_output" != "$expected_output" ]; then
-    echo "FAIL: test_prompt_proceed(): input: '$input', expected: '$expected_output', actual: '$actual_output'"
-    exit 1
-  fi
-
-  input=""
-  expected_output="Y"
-  actual_output=$(printf "$input\n" | ../bash_scripts/hummingbot-create.sh --test prompt_proceed)
-
-  if [ "$actual_output" != "$expected_output" ]; then
-    echo "FAIL: test_prompt_proceed(): input: '$input', expected: '$expected_output', actual: '$actual_output'"
-    exit 1
-  fi
-  echo "PASS: prompt_proceed()"
-}
-
 test_create_folders() {
   temp_folder=$(mktemp -d)
   FOLDER="$temp_folder/folder"
@@ -111,7 +63,7 @@ test_create_folders() {
 
   # Clean up
   rm -rf "$temp_folder"
-  echo "PASS: create_folders() creates correct folders (according to folder_structure.sh)"
+  echo "PASS: create_folders() creates correct folders (according to folder-structure.sh)"
 }
 
 test_set_rw_permissions() {
@@ -179,10 +131,10 @@ test_create_instance_runs_docker() {
   FOLDER="/path/to/test_instance_files"
 
   # Change to the directory containing the hummingbot-create.sh script
-  pushd "$(dirname "${BASH_SOURCE[0]}")/../bash_scripts" >/dev/null
+  pushd "$(dirname "${BASH_SOURCE[0]}")/../bash_scripts" > /dev/null
 
   # Replace the actual run_docker function with the mock function
-  source ./hummingbot-create.sh
+  source ./hummingbot-create.sh --source-only
   run_docker() {
     mock_run_docker "$@"
   }
@@ -200,6 +152,8 @@ test_create_instance_runs_docker() {
 
   # Change back to the original directory
   popd >/dev/null
+
+  unset -f run_docker create_folders set_rw_permissions
 
   echo "PASS: create_instance() calls docker with correct parameters"
 }
@@ -273,33 +227,200 @@ test_docker_mounted_directories() {
   echo "PASS: Docker can add and remove files in mounted directories"
 }
 
+# Startup function
+startup_main() {
+  local instance_name=$1
+  local folder=$2
+
+  # Remove any existing resources before starting the test
+  docker rm -f $instance_name 2>/dev/null
+  rm -rf $folder
+}
+
+# Cleanup function
+cleanup_main() {
+  local instance_name=$1
+  local folder=$2
+
+  # Remove the resources after the test
+  docker rm -f $instance_name 2>/dev/null
+  rm -rf $folder
+}
+
+# Test case 1: Test with default values
+test_main_default_values() {
+  local instance_name="hummingbot"
+  local tag="latest"
+  local folder=$(mktemp -d)
+
+  source ../bash_scripts/hummingbot-create.sh --source-only
+  
+  startup_main $instance_name $folder
+
+  # Overriding the ask() function to provide answers for main()
+  ask() {
+    case "$1" in
+      *"Hummingbot version"*)
+        echo "$tag"
+        ;;
+      *"name for your new Hummingbot instance"*)
+        echo "$instance_name"
+        ;;
+      *"folder name where your Hummingbot files will be saved"*)
+        echo "$folder"
+        ;;
+      *"Do you want to proceed?"*)
+        echo "Y"
+        ;;
+    esac
+  }
+
+  # Overriding the docker() function to simplify the test
+  docker() {
+    echo "Docker command called with: $@"
+  }
+
+  # Simulate user inputs with default values and capture the output
+  #output=$(echo -e "\n\n\n" | main 2>&1 | tee /dev/tty)
+  output=$(echo -e "\n\n\n" | main 2>&1)
+
+  # Verify the created resources
+  if [ ! -d "$folder" ]; then
+    echo "FAIL: main() with default values: $folder not created"
+    exit 1
+  fi
+
+  # Verify if the docker() function was called with the correct arguments
+  expected_docker_args="Docker command called with: run -it --log-opt max-size=10m "
+  expected_docker_args+="--log-opt max-file=5 --name $instance_name --network host"
+  # There is a subtlety here: the order of the volume arguments is not consistent (extra space for v-string)
+  expected_docker_args+="$(v_string $folder) hummingbot/hummingbot:$tag"
+  if [[ ! "$output" =~ .*"$expected_docker_args".* ]]; then
+    echo "FAIL: main() with default values: Docker command not called as expected"
+    echo "Expected:"
+    echo "$expected_docker_args"
+    echo "Actual:"
+    echo "$output"
+    exit 1
+  fi
+
+  unset ask docker
+  cleanup_main $instance_name $folder
+
+  echo "PASS: main() with default values"
+}
+
+test_main_custom_values() {
+  local instance_name="custom_hummingbot"
+  local tag="development"
+  local folder=$(mktemp -d)
+
+  source ../bash_scripts/hummingbot-create.sh --source-only
+
+  startup_main $instance_name $folder
+
+  # Overriding the ask() function to provide answers for main()
+  ask() {
+    case "$1" in
+      *"Hummingbot version"*)
+        echo "$tag"
+        ;;
+      *"name for your new Hummingbot instance"*)
+        echo "$instance_name"
+        ;;
+      *"folder name where your Hummingbot files will be saved"*)
+        echo "$folder"
+        ;;
+      *"Do you want to proceed?"*)
+        echo "Y"
+        ;;
+    esac
+  }
+
+  # Overriding the docker() function to simplify the test
+  docker() {
+    echo "Docker command called with: $@"
+  }
+
+  # Simulate user inputs with custom values and capture the output
+  output=$(echo -e "\n\n\n" | main 2>&1)
+
+  # Verify the created resources
+  if [ ! -d "$folder" ]; then
+    echo "FAIL: main() with custom values: $folder not created"
+    exit 1
+  fi
+
+  # Verify if the docker() function was called with the correct arguments
+  expected_docker_args="Docker command called with: run -it --log-opt max-size=10m "
+  expected_docker_args+="--log-opt max-file=5 --name $instance_name --network host"
+  # There is a subtlety here: the order of the volume arguments is not consistent (extra space for v-string)
+  expected_docker_args+="$(v_string $folder) hummingbot/hummingbot:$tag"
+  if [[ ! "$output" =~ .*"$expected_docker_args".* ]]; then
+    echo "FAIL: main() with custom values: Docker command not called as expected"
+    echo "Expected:"
+    echo "$expected_docker_args"
+    echo "Actual:"
+    echo "$output"
+    exit 1
+  fi
+
+  unset ask docker
+  cleanup_main $instance_name $folder
+
+  echo "PASS: main() with custom values"
+}
+
+test_main_abort() {
+  source ../bash_scripts/hummingbot-create.sh --source-only
+
+  # Overriding the ask() function to provide answers for main()
+  ask() {
+    case "$1" in
+      *"Do you want to proceed?"*)
+        echo "n"
+        ;;
+      *)
+        echo
+        ;;
+    esac
+  }
+
+  # Overriding the docker() function to simplify the test
+  docker() {
+    echo "Docker command called with: $@"
+  }
+
+  # Simulate user inputs to abort the operation and capture the output
+  #output=$(echo -e "\n\n\n" | main 2>&1 | tee /dev/tty)
+  output=$(echo -e "\n\n\n" | main 2>&1)
+
+  # Verify if the docker() function was not called
+  if [[ "$output" =~ *"Docker command called with:"* ]]; then
+    echo "FAIL: main() with abort: Docker command should not have been called"
+    exit 1
+  fi
+
+  unset ask docker
+  echo "PASS: main() with abort"
+}
+
 # Run the tests
-test_ask
 test_print_folder_structure
-test_prompt_proceed
 test_create_folders
 test_set_rw_permissions
 test_create_instance_runs_docker
 test_docker_mounted_directories
+test_main_default_values
+test_main_custom_values
+test_main_abort
 
 run_test_cases_hummingbot_create() {
     echo "Running test cases for ../bash_scripts/hummingbot-create.sh"
 
-  test_ask
-  if [ $? -ne 0 ]; then
-    echo "FAIL: test_ask"
-    exit 1
-  fi
-
   test_print_folder_structure
   if [ $? -ne 0 ]; then
     echo "FAIL: test_print_folder_structure"
-    exit 1
-  fi
-
-  test_prompt_proceed
-  if [ $? -ne 0 ]; then
-    echo "FAIL: test_prompt_proceed"
     exit 1
   fi
 
@@ -324,6 +445,18 @@ run_test_cases_hummingbot_create() {
   test_docker_mounted_directories
   if [ $? -ne 0 ]; then
     echo "FAIL: test_create_instance"
+    exit 1
+  fi
+
+  test_main_default_values
+  if [ $? -ne 0 ]; then
+    echo "FAIL: test_main_default_values"
+    exit 1
+  fi
+
+  test_main_custom_values
+  if [ $? -ne 0 ]; then
+    echo "FAIL: test_main_custom_values"
     exit 1
   fi
 

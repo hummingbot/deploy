@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source folder-structure.sh
+source $(dirname "$0")/../bash_scripts/folder-structure.sh
 
 # Test default values
 test_sub_folders() {
@@ -68,8 +68,8 @@ test_sub_conf_extras
 test_set_rw_permissions
 test_docker_volume_args
 
-run_test_cases_folder_structure() {
-    echo "Running test cases for ../bash_scripts/folder_structure.sh"
+run_test_cases_folder-structure() {
+    echo "Running test cases for ../bash_scripts/folder-structure.sh"
 
   test_sub_folders
   if [ $? -ne 0 ]; then

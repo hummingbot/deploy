@@ -36,10 +36,18 @@ def step_abort_instance_creation(context):
     # Simulate user input to abort the instance creation
     folder = "tmp_test_folder_abort"
 
-    input_str = f"{context.instance_name}\n{context.tag}\n{folder}\nN\n"
-    cmd = f"printf '{input_str}' | ../bash_scripts/hummingbot-create.sh"
+    cmd = f"../bash_scripts/hummingbot-create.sh"
+    child = pexpect.spawn(cmd)
+    child.expect("Enter Hummingbot version you want to use")
+    child.sendline(context.instance_name)
+    child.expect("Enter a name for your new Hummingbot instance")
+    child.sendline(context.tag)
+    child.expect("Enter a folder name where your Hummingbot files will be saved")
+    child.sendline(folder)
+    child.expect("Do you want to proceed")
+    child.sendline("N")
+    child.wait()
 
-    subprocess.run(cmd, shell=True, check=True)
     context.folder = folder
 
 
