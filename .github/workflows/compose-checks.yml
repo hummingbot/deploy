@@ -1,0 +1,22 @@
+name: Compose Files Checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  scripts-behave-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v4
+
+    - name: Verify compose files validity
+      run: |
+        for file in $(find . -name '*compose*.yml'); do
+          docker-compose -f $file config > /dev/null
+        done

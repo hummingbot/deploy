@@ -9,12 +9,12 @@ on:
       - main
 
 jobs:
-  scripts-behave-test:
+  scripts-test:
     runs-on: ubuntu-latest
     steps:
     - name: Check out repository code
       uses: actions/checkout@v4
 
-    - name: Run Hummingbot tests
+    - name: Run Scripts testsuite
       run: |
         (cd tests; chmod +x test_suite.sh; ./test_suite.sh)
