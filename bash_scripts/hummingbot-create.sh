@@ -86,14 +86,14 @@ create_instance () {
  docker run -it --log-opt max-size=10m --log-opt max-file=5 \
  --name $INSTANCE_NAME \
  --network host \
- -v $CONF_FOLDER:/conf \
- -v $CONF_FOLDER/connectors:/conf/connectors \
- -v $CONF_FOLDER/strategies:/conf/strategies \
- -v $LOGS_FOLDER:/logs \
- -v $DATA_FOLDER:/data \
- -v $PMM_SCRIPTS_FOLDER:/pmm_scripts \
- -v $SCRIPTS_FOLDER:/scripts \
- -v $CERTS_FOLDER:/certs \
+ -v $CONF_FOLDER:/home/hummingbot/conf \
+ -v $CONF_FOLDER/connectors:/home/hummingbot/conf/connectors \
+ -v $CONF_FOLDER/strategies:/home/hummingbot/conf/strategies \
+ -v $LOGS_FOLDER:/home/hummingbot/logs \
+ -v $DATA_FOLDER:/home/hummingbot/data \
+ -v $PMM_SCRIPTS_FOLDER:/home/hummingbot/pmm_scripts \
+ -v $SCRIPTS_FOLDER:/home/hummingbot/scripts \
+ -v $CERTS_FOLDER:/home/hummingbot/certs \
  hummingbot/hummingbot:$TAG
 }
 
