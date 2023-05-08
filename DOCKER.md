@@ -6,28 +6,35 @@ Using Docker for Hummingbot deployment offers several benefits, such as simplify
 
 ## Install Docker Compose
 
-### Installer
+The examples below use Docker Compose, a tool for defining and running multi-container Docker applications. You can install Docker Compose either via command line or by running an installer.
 
-Installing [Docker Desktop](https://www.docker.com/products/docker-desktop/) includes Docker Compose along with Docker Engine and Docker CLI which are Compose prerequisites.
-
-Docker Desktop is available on:
-
-* [Linux](https://docs.docker.com/desktop/install/linux-install/)
-* [Mac](https://docs.docker.com/desktop/install/mac-install/)
-* [Windows](https://docs.docker.com/desktop/install/windows-install/)
-
-### Ubuntu / Debian
+Linux (Ubuntu / Debian):
 
 ```bash
 sudo apt-get update
 sudo apt-get install docker-compose-plugin
 ```
 
+Mac (Homebrew):
+
+```bash
+brew install docker-compose
+```
+
+If you want to be guided through the installation, install [Docker Desktop](https://www.docker.com/products/docker-desktop/) includes Docker Compose along with Docker Engine and Docker CLI which are Compose prerequisites:
+
+* [Linux](https://docs.docker.com/desktop/install/linux-install/)
+* [Mac](https://docs.docker.com/desktop/install/mac-install/)
+* [Windows](https://docs.docker.com/desktop/install/windows-install/)
+
+
 Verify that Docker Compose is installed correctly by checking the version:
 
 ```bash
 docker compose version
 ```
+
+The output should be: `Docker Compose version v2.17.2` or similar. Ensure that you are using Docker Compose V2, as V1 is deprecated.
 
 ## Useful Docker Commands
 

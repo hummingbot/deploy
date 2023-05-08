@@ -10,15 +10,13 @@ See [Docker](../DOCKER.md) for more information about how to install and use Doc
 
 ## Getting Started
 
-In Terminal/Bash, run the following command to check that you have installed Docker Compose successfully:
-```
-docker compose
+Verify that Docker Compose is installed correctly by checking the version:
+
+```bash
+docker compose version
 ```
 
-You should see a response that start with:
-```
-Usage:  docker compose [OPTIONS] COMMAND
-```
+The output should be: `Docker Compose version v2.17.2` or similar. Ensure that you are using Docker Compose V2, as V1 is deprecated.
 
 ### 1. Launch network
 

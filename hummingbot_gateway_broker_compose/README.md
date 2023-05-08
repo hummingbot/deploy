@@ -21,15 +21,13 @@ To enable this, you will do need a few things first:
 - Give Gateway the passphrase used to generate the certificates (`GATEWAY_PASSPHRASE`)
 - Configure the EMQX broker
 
-First, let's check that you have installed Docker Compose successfully. In Terminal/Bash, Run the following command:
-```
-docker compose
+Verify that Docker Compose is installed correctly by checking the version:
+
+```bash
+docker compose version
 ```
 
-You should see a response that start with:
-```
-Usage:  docker compose [OPTIONS] COMMAND
-```
+The output should be: `Docker Compose version v2.17.2` or similar. Ensure that you are using Docker Compose V2, as V1 is deprecated.
 
 ### 1. Launch network
 
