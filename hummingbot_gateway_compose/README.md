@@ -8,25 +8,6 @@ This configuration requires [Docker Compose](https://docs.docker.com/compose/), 
 
 See [Docker](../DOCKER.md) for more information about how to install and use Docker Compose, as well as helpful commands.
 
-## Apple M1/M2 and other ARM machines
-
-If you have a recent Mac that uses Apple Silicon (M1/M2) chipset or another ARM-based machine, you need to change the image tag to ensure that you pull a container that is optimized for your chip architecture. 
-
-Use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file. Change the tag for **both** the Hummingbot and Gateway images from `latest` to `latest-arm` to pull the images built for ARM-based machines. 
-
-You can also comment out the each line that contains `latest` and uncomment each line that contains `latest-arm`:
-```
-# image: hummingbot/hummingbot:latest
-image: hummingbot/hummingbot:latest-arm
-
-# image: hummingbot/gateway:latest
-image: hummingbot/gateway:latest-arm
-```
-
-Afterwards, save the file and proceed to the next step.
-
-If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-based machine, you don't need to make any changes before deploying a container.
-
 ## Getting Started
 
 Installing Hummingbot alongside Gateway lets you access data and execute orders on DEX connectors.

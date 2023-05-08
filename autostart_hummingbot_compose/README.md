@@ -8,20 +8,6 @@ This configuration requires [Docker Compose](https://docs.docker.com/compose/), 
 
 See [Docker](../DOCKER.md) for more information about how to install and use Docker Compose, as well as helpful commands.
 
-## Apple M1/M2 and other ARM machines
-
-If you have a recent Mac that uses Apple Silicon (M1/M2) chipset or another ARM-based machine, you need to change the image tag to ensure that you pull a container that is optimized for your chip architecture. 
-
-Use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file. Change the the image tag from `latest` to `latest-arm` to pull the image built for ARM-based machines. You can also comment out the line that contains `latest` and uncomment the line that contains `latest-arm`:
-```
-# image: hummingbot/hummingbot:latest
-image: hummingbot/hummingbot:latest-arm
-```
-
-Afterwards, save the file and proceed to the next step.
-
-If you are using a Mac with an Intel (x86) chipset, Windows or any other Intel-based machine, you don't need to make any changes before deploying a container.
-
 ## Getting Started
 
 Auto-starting a script/strategy lets you start a bot from the command line, skipping the Hummingbot UI. 

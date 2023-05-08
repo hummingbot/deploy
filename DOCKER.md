@@ -4,13 +4,30 @@
 
 Using Docker for Hummingbot deployment offers several benefits, such as simplifying the installation process, enabling easy versioning and scaling, and ensuring a consistent and isolated environment for running the bot. This repository aims to help users get started with deploying Hummingbot using Docker by providing different examples that demonstrate how to set up and customize the bot according to their needs.
 
-The recommended way to get Docker Compose is to install [Docker Desktop](https://www.docker.com/products/docker-desktop/), which includes Docker Compose along with Docker Engine and Docker CLI which are Compose prerequisites.
+## Install Docker Compose
+
+### Installer
+
+Installing [Docker Desktop](https://www.docker.com/products/docker-desktop/) includes Docker Compose along with Docker Engine and Docker CLI which are Compose prerequisites.
 
 Docker Desktop is available on:
 
 * [Linux](https://docs.docker.com/desktop/install/linux-install/)
 * [Mac](https://docs.docker.com/desktop/install/mac-install/)
 * [Windows](https://docs.docker.com/desktop/install/windows-install/)
+
+### Ubuntu / Debian
+
+```bash
+sudo apt-get update
+sudo apt-get install docker-compose-plugin
+```
+
+Verify that Docker Compose is installed correctly by checking the version:
+
+```bash
+docker compose version
+```
 
 ## Useful Docker Commands
 
