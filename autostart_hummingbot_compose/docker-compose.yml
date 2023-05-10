@@ -1,21 +1,20 @@
 version: "3.9"
 services:
   hummingbot:
-    container_name: "hummingbot"
+    container_name: hummingbot
     image: hummingbot/hummingbot:latest
-    # image: hummingbot/hummingbot:latest-arm
     volumes:
-      - "./hummingbot_files/conf:/conf"
-      - "./hummingbot_files/conf/connectors:/conf/connectors"
-      - "./hummingbot_files/conf/strategies:/conf/strategies"
-      - "./hummingbot_files/logs:/logs"
-      - "./hummingbot_files/data:/data"
-      - "./hummingbot_files/scripts:/scripts"
-      - "./hummingbot_files/certs:/certs"
-    # environment:
-      # - CONFIG_PASSWORD=[password]
-      # - CONFIG_FILE_NAME=simple_pmm_example.py
-      # - CONFIG_FILE_NAME=conf_pure_mm_1.yml
+      - "./hummingbot_files/conf:/home/hummingbot/conf"
+      - "./hummingbot_files/conf/connectors:/home/hummingbot/conf/connectors"
+      - "./hummingbot_files/conf/strategies:/home/hummingbot/conf/strategies"
+      - "./hummingbot_files/logs:/home/hummingbot/logs"
+      - "./hummingbot_files/data:/home/hummingbot/data"
+      - "./hummingbot_files/scripts:/home/hummingbot/scripts"
+      - "./hummingbot_files/certs:/home/hummingbot/certs"
+#    environment:
+#      - CONFIG_PASSWORD=[password]
+#      - CONFIG_FILE_NAME=simple_pmm_example.py
+#      - CONFIG_FILE_NAME=conf_pure_mm_1.yml
     logging:
       driver: "json-file"
       options:
