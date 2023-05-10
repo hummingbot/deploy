@@ -3,7 +3,6 @@ services:
   hummingbot:
     container_name: "hummingbot"
     image: hummingbot/hummingbot:latest
-    # image: hummingbot/hummingbot:latest-arm
     volumes:
       - "./hummingbot_files/conf:/conf"
       - "./hummingbot_files/conf/connectors:/conf/connectors"
@@ -26,7 +25,6 @@ services:
   gateway:
     container_name: "gateway"
     image: hummingbot/gateway:latest
-    # image: hummingbot/gateway:latest-arm
     ports:
       - "15888:15888"
       - "8080:8080"

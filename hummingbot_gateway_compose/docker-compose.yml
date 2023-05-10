@@ -11,6 +11,8 @@ services:
       - "./hummingbot_files/data:/home/hummingbot/data"
       - "./hummingbot_files/scripts:/home/hummingbot/scripts"
       - "./hummingbot_files/certs:/home/hummingbot/certs"
+    # environment:
+    #   - CONFIG_PASSWORD=[password]      
     logging:
       driver: "json-file"
       options:
