@@ -11,15 +11,15 @@ services:
       - "./hummingbot_files/data:/home/hummingbot/data"
       - "./hummingbot_files/scripts:/home/hummingbot/scripts"
       - "./hummingbot_files/certs:/home/hummingbot/certs"
-#    environment:
-#      - CONFIG_PASSWORD=[password]
-#      - CONFIG_FILE_NAME=simple_pmm_example.py
-#      - CONFIG_FILE_NAME=conf_pure_mm_1.yml
+    # environment:
+    #   - CONFIG_PASSWORD=[password]
+    #   - CONFIG_FILE_NAME=simple_pmm_example.py
+    #   - CONFIG_FILE_NAME=conf_pure_mm_1.yml
     logging:
       driver: "json-file"
       options:
           max-size: "10m"
-          max-file: 5
+          max-file: "5"
     tty: true
     stdin_open: true
     network_mode: host
