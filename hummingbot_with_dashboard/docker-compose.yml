@@ -2,7 +2,7 @@ version: "3.9"
 services:
   bot:
     container_name: hummingbot
-    image: dardonacci/hummingbot:multiarch
+    image: hummingbot/hummingbot:latest
     volumes:
       - ./hummingbot_files/conf:/home/hummingbot/conf
       - ./hummingbot_files/conf/connectors:/home/hummingbot/conf/connectors
@@ -19,8 +19,8 @@ services:
     network_mode: host
   dashboard:
     container_name: dashboard
-    image: dardonacci/streamlit-apps:latest
+    image: dardonacci/dashboard:latest
     volumes:
-      - ./hummingbot_files/data:/home/streamlit-apps/data
+      - ./hummingbot_files/data:/home/dashboard/data
     ports:
       - "8501:8501"
