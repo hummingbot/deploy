@@ -19,7 +19,7 @@ services:
     network_mode: host
   dashboard:
     container_name: dashboard
-    image: dardonacci/dashboard:latest
+    image: hummingbot/dashboard:latest
     volumes:
       - ./hummingbot_files/data:/home/dashboard/data
     ports:
