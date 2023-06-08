@@ -48,7 +48,12 @@ Run this command from your root folder to grant read/write permission to the `hu
 sudo chmod -R a+rw ./hummingbot_files
 ```
 
-### 3. Launch Hummingbot
+### 3. Populate scripts folder with examples
+```
+docker cp hummingbot:/home/hummingbot/scripts ./hummingbot_files/scripts
+```
+
+### 4. Launch Hummingbot
 
 Attach to the `hummingbot` instance:
 ```

@@ -9,7 +9,6 @@ services:
       - "./hummingbot_files/conf/strategies:/home/hummingbot/conf/strategies"
       - "./hummingbot_files/logs:/home/hummingbot/logs"
       - "./hummingbot_files/data:/home/hummingbot/data"
-      - "./hummingbot_files/scripts:/home/hummingbot/scripts"
       - "./hummingbot_files/certs:/home/hummingbot/certs"
     logging:
       driver: "json-file"
