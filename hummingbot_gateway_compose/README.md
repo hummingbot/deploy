@@ -50,11 +50,21 @@ After the images have been downloaded, you should see the following output:
  ⠿ Container gateway                              Started       
 ```
 
-### 2. Set permissions
+### 2. Set permissions and other initialization operations
 
 Run this command from your root folder to grant read/write permission to the `hummingbot_files` and `gateway_files` sub-folders:
 ```
 sudo chmod -R a+rw ./hummingbot_files ./gateway_files
+```
+
+Populate Hummingbot scripts folder with example scripts from the Hummingbot image:
+```
+docker cp hummingbot:/home/hummingbot/scripts ./hummingbot_files/scripts
+```
+
+Populate Gateway lists folder from token lists from the Gateway image:
+```
+docker cp gateway:/home/gateway/src/templates/lists ./gateway_files/conf/lists
 ```
 
 ### 3. Launch Hummingbot and generate certificates

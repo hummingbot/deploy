@@ -9,10 +9,9 @@ services:
       - "./hummingbot_files/conf/strategies:/home/hummingbot/conf/strategies"
       - "./hummingbot_files/logs:/home/hummingbot/logs"
       - "./hummingbot_files/data:/home/hummingbot/data"
-      - "./hummingbot_files/scripts:/home/hummingbot/scripts"
       - "./hummingbot_files/certs:/home/hummingbot/certs"
     # environment:
-    #   - CONFIG_PASSWORD=[password]      
+    #   - CONFIG_PASSWORD=[password]
     logging:
       driver: "json-file"
       options:
@@ -29,8 +28,9 @@ services:
       - "15888:15888"
       - "8080:8080"
     volumes:
-      - "./gateway_files/conf:/usr/src/app/conf"
-      - "./gateway_files/logs:/usr/src/app/logs"
-      - "./hummingbot_files/certs:/usr/src/app/certs"
+      - "./gateway_files/conf:/home/gateway/conf"
+      - "./gateway_files/logs:/home/gateway/logs"
+      - "./gateway_files/db:/home/gateway/db"
+      - "./hummingbot_files/certs:/home/gateway/certs"
     # environment:
     #   - GATEWAY_PASSPHRASE=[passphrase]
