@@ -53,6 +53,11 @@ sudo chmod -R a+rw ./hummingbot_files
 docker cp hummingbot:/home/hummingbot/scripts ./hummingbot_files/scripts
 ```
 
+Now, uncommment out this line in the `docker-compose.yml` file in order to allow the Docker image to access these scripts. This step shouldn't be necessary in the future:
+```
+ - "./hummingbot_files/scripts:/home/hummingbot/scripts"
+```
+
 ### 4. Launch Hummingbot
 
 Attach to the `hummingbot` instance:

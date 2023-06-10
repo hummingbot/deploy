@@ -59,12 +59,12 @@ sudo chmod -R a+rw ./hummingbot_files ./gateway_files
 
 Populate Hummingbot scripts folder with example scripts from the Hummingbot image:
 ```
-docker cp hummingbot:/home/hummingbot/scripts ./hummingbot_files/scripts
+docker cp hummingbot:/home/hummingbot/scripts-copy/. ./hummingbot_files/scripts/
 ```
 
 Populate Gateway lists folder from token lists from the Gateway image:
 ```
-docker cp gateway:/home/gateway/src/templates/lists ./gateway_files/conf/lists
+docker cp gateway:/home/gateway/src/templates/lists/. ./gateway_files/conf/lists/
 ```
 
 ### 3. Launch Hummingbot and generate certificates
