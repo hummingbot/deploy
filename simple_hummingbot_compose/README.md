@@ -48,14 +48,10 @@ Run this command from your root folder to grant read/write permission to the `hu
 sudo chmod -R a+rw ./hummingbot_files
 ```
 
-### 3. Populate scripts folder with examples
+### 3. Populate scripts folder with example scripts
+Run this command to copy the sample scripts into the `scripts` folder. Any new scripts you add here will also be available to your `hummingbot` instance.
 ```
-docker cp hummingbot:/home/hummingbot/scripts ./hummingbot_files/scripts
-```
-
-Now, uncommment out this line in the `docker-compose.yml` file in order to allow the Docker image to access these scripts. This step shouldn't be necessary in the future:
-```
- - "./hummingbot_files/scripts:/home/hummingbot/scripts"
+docker cp hummingbot:/home/hummingbot/scripts-copy/. ./hummingbot_files/scripts/
 ```
 
 ### 4. Launch Hummingbot
