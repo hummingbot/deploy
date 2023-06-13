@@ -84,10 +84,11 @@ Run the following command to generate Gateway certificates:
 ```
 gateway generate-certs
 ```
+![generate certs](./generate-certs.png)
 
 You'll be prompted for a passphrase used to generate the certificates. This is the `GATEWAY_PASSPHRASE` environment variable in your `docker-compose.yml` file.
 
-Hummingbot will use the passphrase to generate the certificates and save them in the `hummingbot_files/certs` folder, where the Gateway instance will look for the certificates it needs.
+Hummingbot will use the passphrase to generate the certificates and save them in the `hummingbot_files/certs` folder, which is mapped to the `/home/hummingbot/certs` in the image. This location is also mapped to `/home/gateway/certs`, where the Gateway instance will look for the certificates it needs.
 
 Afterwards, run `exit` to exit Hummingbot.
 
