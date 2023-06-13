@@ -2,7 +2,7 @@ version: "3.9"
 services:
   hummingbot:
     container_name: hummingbot
-    image: hummingbot/hummingbot:latest
+    image: hummingbot/hummingbot:scripts-copy
     volumes:
       - "./hummingbot_files/conf:/home/hummingbot/conf"
       - "./hummingbot_files/conf/connectors:/home/hummingbot/conf/connectors"
@@ -12,7 +12,7 @@ services:
       - "./hummingbot_files/scripts:/home/hummingbot/scripts"
       - "./hummingbot_files/certs:/home/hummingbot/certs"
     # environment:
-    #   - CONFIG_PASSWORD=[password]      
+    #   - CONFIG_PASSWORD=[password]
     logging:
       driver: "json-file"
       options:
@@ -24,13 +24,14 @@ services:
 
   gateway:
     container_name: gateway
-    image: hummingbot/gateway:latest
+    image: hummingbot/gateway:move-list
     ports:
       - "15888:15888"
       - "8080:8080"
     volumes:
-      - "./gateway_files/conf:/usr/src/app/conf"
-      - "./gateway_files/logs:/usr/src/app/logs"
-      - "./hummingbot_files/certs:/usr/src/app/certs"
+      - "./gateway_files/conf:/home/gateway/conf"
+      - "./gateway_files/logs:/home/gateway/logs"
+      - "./gateway_files/db:/home/gateway/db"
+      - "./hummingbot_files/certs:/home/gateway/certs"
     # environment:
     #   - GATEWAY_PASSPHRASE=[passphrase]
