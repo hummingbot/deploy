@@ -107,13 +107,13 @@ We'll edit the section that defines the following environment variables:
 ```yaml
   hummingbot-1:
     # environment:
-      #  - CONFIG_PASSWORD=[password]
+      #  - CONFIG_PASSWORD=a
   hummingbot-2:
     # environment:
-      #  - CONFIG_PASSWORD=[password]
+      #  - CONFIG_PASSWORD=a
   gateway:
     # environment:
-      #  - GATEWAY_PASSPHRASE=[passphrase]
+      #  - GATEWAY_PASSPHRASE=a
 ```
 
 Uncomment out:
@@ -125,13 +125,13 @@ The final `environment` section of the YAML file should look like this:
 ```yaml
   hummingbot-1:
     environment:
-      - CONFIG_PASSWORD=[password]
+      - CONFIG_PASSWORD=a
   hummingbot-2:
     environment:
-      - CONFIG_PASSWORD=[password]
+      - CONFIG_PASSWORD=a
   gateway:
     environment:
-      - GATEWAY_PASSPHRASE=[passphrase]
+      - GATEWAY_PASSPHRASE=a
 ```
 
 Afterwards, save the file.

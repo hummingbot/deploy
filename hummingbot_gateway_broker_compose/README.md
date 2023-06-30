@@ -106,10 +106,10 @@ Edit the section that defines the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME` envir
 ```yaml
   hummingbot:
     # environment:
-      #  - CONFIG_PASSWORD=[password]
+      #  - CONFIG_PASSWORD=a
   gateway:
     # environment:
-      #  - GATEWAY_PASSPHRASE=[passphrase]
+      #  - GATEWAY_PASSPHRASE=a
 ```
 
 Uncomment out:
@@ -121,10 +121,10 @@ The final `environment` section of the YAML file should look like this:
 ```yaml
   bot:
     environment:
-      - CONFIG_PASSWORD=[password]
+      - CONFIG_PASSWORD=a
   gateway:
     environment:
-      - GATEWAY_PASSPHRASE=[passphrase]
+      - GATEWAY_PASSPHRASE=a
 ```
 
 Afterwards, save the file.

@@ -12,7 +12,7 @@ services:
       - "./hummingbot_files/scripts:/scripts"
       - "./hummingbot_files/certs:/certs"
     # environment:
-    #   - CONFIG_PASSWORD=[password]
+    #   - CONFIG_PASSWORD=a
     logging:
       driver: "json-file"
       options:
@@ -33,7 +33,7 @@ services:
       - "./gateway_files/logs:/usr/src/app/logs"
       - "./hummingbot_files/certs:/usr/src/app/certs"
     # environment:
-    #   - GATEWAY_PASSPHRASE=[passphrase]
+    #   - GATEWAY_PASSPHRASE=a
 
   emqx:
     container_name: "emqx"

@@ -52,20 +52,33 @@ After the images have been downloaded, you should see the following output:
 
 ### 2. Set permissions and other initialization operations
 
+**Grant read-write permissions**
+
 Run this command from your root folder to grant read/write permission to the `hummingbot_files` and `gateway_files` sub-folders:
 ```
 sudo chmod -R a+rw ./hummingbot_files ./gateway_files
 ```
+
+You may run into read-only permission issues if you don't do this.
+
+**Add scripts**
 
 Populate Hummingbot scripts folder with example scripts from the Hummingbot image:
 ```
 docker cp hummingbot:/home/hummingbot/scripts-copy/. ./hummingbot_files/scripts/
 ```
 
+This step is needed to being able to run the script examples. You can also copy individual [script examples](https://github.com/hummingbot/hummingbot/tree/master/scripts) into the `hummingbot_files/scripts` folder to make them available to your instance.
+
+**Add token lists**
+
 Populate Gateway lists folder from token lists from the Gateway image:
 ```
 docker cp gateway:/home/gateway/src/templates/lists/. ./gateway_files/conf/lists/
 ```
+
+This step is needed to being able to interpret token symbols. Otherwise, you'll get "Token not supported" errors when you run Hummingbot. You can also copy individual [token lists](https://github.com/hummingbot/gateway/tree/main/src/templates/lists) into the `hummingbot_files/conf/lists` folder to make them available to your instance.
+
 
 ### 3. Launch Hummingbot and generate certificates
 

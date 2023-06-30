@@ -86,7 +86,7 @@ Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docke
 Edit the section that defines the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME` environment variables:
 ```yaml
     # environment:
-      # - CONFIG_PASSWORD=[password]
+      # - CONFIG_PASSWORD=a
       # - CONFIG_FILE_NAME=simple_pmm_example.py
       # - CONFIG_FILE_NAME=conf_pure_mm_1.yml
 ```
@@ -99,7 +99,7 @@ Uncomment out:
  The final `environment` section of the YAML file should look like this:
 ```yaml
     environment:
-      - CONFIG_PASSWORD=[password]
+      - CONFIG_PASSWORD=a
       - CONFIG_FILE_NAME=simple_pmm_example.py
 ```
 

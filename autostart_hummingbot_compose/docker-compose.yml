@@ -12,7 +12,7 @@ services:
       - "./hummingbot_files/scripts:/home/hummingbot/scripts"
       - "./hummingbot_files/certs:/home/hummingbot/certs"
     # environment:
-    #   - CONFIG_PASSWORD=[password]
+    #   - CONFIG_PASSWORD=a
     #   - CONFIG_FILE_NAME=simple_pmm_example.py
     #   - CONFIG_FILE_NAME=conf_pure_mm_1.yml
     logging:
