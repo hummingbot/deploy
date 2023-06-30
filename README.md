@@ -11,7 +11,7 @@ See [Docker](./DOCKER.md) for more information about how to install and use Dock
 ## How do I use this repo?
 
 Each folder showcases a different deployment type using Docker Compose, such as:
-* A single Hummingbot instance
+* A single Hummingbot instance along with a dashboard that analyzes it
 * A single Hummingbot instance that auto-starts a strategy or script
 * Linked Hummingbot and Gateway instances
 * Multiple instances of Hummingbot
@@ -27,15 +27,15 @@ docker compose up -d
 
 ## Deployment types using Docker Compose
 
-### [Simple Hummingbot Compose](./simple_hummingbot_compose)
-
-This installs a single [Hummingbot](https://github.com/hummingbot/hummingbot) instance as a Docker container.
-
 ### [Hummingbot with Dashboard](./hummingbot_with_dashboard)
+
+⭐️⭐️⭐️ We recommend that new Hummingbot users follow this route ⭐️⭐️⭐️
 
 This installs a single [Hummingbot](https://github.com/hummingbot/hummingbot) instance with a companion [Hummingbot Dashboard](https://github.com/hummingbot/dashboard) running.
 
-Documentation coming soon.
+### [Simple Hummingbot Compose](./simple_hummingbot_compose)
+
+This installs a single [Hummingbot](https://github.com/hummingbot/hummingbot) instance as a Docker container.
 
 ### [Autostart Hummingbot Compose](./autostart_hummingbot_compose)
 
