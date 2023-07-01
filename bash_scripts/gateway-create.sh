@@ -36,6 +36,7 @@ elif [[ ${FOLDER::1} != "/" ]]; then
 fi
 CONF_FOLDER="$FOLDER/conf"
 LOGS_FOLDER="$FOLDER/logs"
+DB_FOLDER="$FOLDER/db"
 CERTS_FOLDER="$FOLDER/certs"
 
 
@@ -91,7 +92,8 @@ printf "%30s %5s\n" "Version:" "hummingbot/gateway:$GATEWAY_TAG"
 echo
 printf "%30s %5s\n" "Hummingbot instance ID:" "$HUMMINGBOT_INSTANCE_ID"
 printf "%30s %5s\n" "Gateway conf path:" "$CONF_FOLDER"
-printf "%30s %5s\n" "Gateway log path:" "$LOGS_FOLDER"
+printf "%30s %5s\n" "Gateway logs path:" "$LOGS_FOLDER"
+printf "%30s %5s\n" "Gateway db path:" "$DB_FOLDER"
 printf "%30s %5s\n" "Gateway certs path:" "$CERTS_FOLDER"
 printf "%30s %5s\n" "Gateway port:" "$GATEWAY_PORT"
 printf "%30s %5s\n" "Gateway docs port:" "$DOCS_PORT"
@@ -136,6 +138,28 @@ prompt_proceed () {
  fi
 }
 
+prompt_copy_certs () {
+  echo
+  read -p "Do you want to generate certs from a Hummingbot instance? [Y/N] >>> " PROCEED
+  if [[ "$PROCEED" == "Y" || "$PROCEED" == "y" ]]
+  then
+    mkdir $CERTS_FOLDER
+    sudo chmod a+rw $CERTS_FOLDER
+    prompt_existing_certs_path
+  fi
+}
+
+prompt_copy_lists () {
+  echo
+  read -p "Do you want to generate default token lists? [Y/N] >>> " PROCEED
+  if [[ "$PROCEED" == "Y" || "$PROCEED" == "y" ]]
+  then
+    mkdir $CONF_FOLDER/lists
+    sudo chmod a+rw $CONF_FOLDER/lists
+    docker cp $INSTANCE_NAME:/home/gateway/src/templates/lists/. $CONF_FOLDER/lists/
+  fi
+}
+
 # Execute docker commands
 create_instance () {
    echo
@@ -146,19 +170,20 @@ create_instance () {
    # 2) Create subfolders for gateway files
    mkdir $CONF_FOLDER
    mkdir $LOGS_FOLDER
-   mkdir $CERTS_FOLDER
    # 3) Set required permissions to save gateway passphrase the first time
-   sudo chmod a+rw $CONF_FOLDER $CERTS_FOLDER
-   prompt_existing_certs_path
+   sudo chmod a+rw $CONF_FOLDER
+   # 4) Prompt user whether to copy over the Hummingbot certs
+   prompt_copy_certs
 
    # Launch a new instance of gateway
    docker run -d \
    --name $INSTANCE_NAME \
    -p $GATEWAY_PORT:15888 \
    -p $DOCS_PORT:8080 \
-   -v $CONF_FOLDER:/usr/src/app/conf \
-   -v $LOGS_FOLDER:/usr/src/app/logs \
-   -v $CERTS_FOLDER:/usr/src/app/certs \
+   -v $CONF_FOLDER:/home/gateway/conf \
+   -v $LOGS_FOLDER:/home/gateway/logs \
+   -v $DB_FOLDER:/home/gateway/db \
+   -v $CERTS_FOLDER:/home/gateway/certs \
    -e GATEWAY_PASSPHRASE="$PASSPHRASE" \
    hummingbot/gateway:$GATEWAY_TAG
 }
@@ -166,6 +191,7 @@ prompt_proceed
 if [[ "$PROCEED" == "Y" || "$PROCEED" == "y" ]]
 then
  create_instance
+ prompt_copy_lists
 else
  echo "Aborted"
  echo
