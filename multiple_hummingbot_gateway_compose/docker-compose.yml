@@ -51,8 +51,9 @@ services:
       - "15888:15888"
       - "8080:8080"
     volumes:
-      - "./gateway_files/conf:/usr/src/app/conf"
-      - "./gateway_files/logs:/usr/src/app/logs"
-      - "./hummingbot_files/certs:/usr/src/app/certs"
+      - "./gateway_files/conf:/home/gateway/conf"
+      - "./gateway_files/logs:/home/gateway/logs"
+      - "./gateway_files/db:/home/gateway/db"
+      - "./hummingbot_files/certs:/home/gateway/certs"
     # environment:
     #   - GATEWAY_PASSPHRASE=a
