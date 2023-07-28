@@ -59,16 +59,7 @@ sudo chmod -R a+rw ./hummingbot_files ./gateway_files
 
 You may run into read-only permission issues if you don't do this.
 
-### 3. Add token lists
-
-Populate Gateway lists folder from token lists from the Gateway image:
-```
-docker cp gateway:/home/gateway/src/templates/lists/. ./gateway_files/conf/lists/
-```
-
-This step is needed to being able to interpret token symbols. Otherwise, you'll get "Token not supported" errors when you run Hummingbot. You can also copy individual [token lists](https://github.com/hummingbot/gateway/tree/main/src/templates/lists) into the `hummingbot_files/conf/lists` folder to make them available to your instance.
-
-### 4. Add scripts
+### 3. Add scripts
 
 Populate Hummingbot scripts folder with example scripts from the Hummingbot image:
 ```
@@ -78,7 +69,7 @@ docker cp hummingbot:/home/hummingbot/scripts-copy/. ./hummingbot_files/scripts/
 This step is needed to being able to run the script examples. You can also copy individual [script examples](https://github.com/hummingbot/hummingbot/tree/master/scripts) into the `hummingbot_files/scripts` folder to make them available to your instance.
 
 
-### 5. Launch Hummingbot and generate certificates
+### 4. Launch Hummingbot and generate certificates
 
 Now, attach to the `hummingbot` instance:
 ```
@@ -103,7 +94,7 @@ Hummingbot will use the passphrase to generate the certificates and save them in
 
 Afterwards, run `exit` to exit Hummingbot.
 
-### 6. Remove network
+### 5. Remove network
 
 Once you're back in Bash/Terminal, run the following command to remove the Compose project:
 ```
@@ -118,7 +109,7 @@ You should see the following output:
  ⠿ Network hummingbot_gateway_compose_default   Removed
 ```  
 
-### 7. Modify YAML file
+### 6. Modify YAML file
 
 Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
 
@@ -149,7 +140,7 @@ The final `environment` section of the YAML file should look like this:
 
 Afterwards, save the file.
 
-### 8. Recreate network
+### 7. Recreate network
 
 Now, recreate the Compose project:
 ```
@@ -178,3 +169,42 @@ For Gateway, check out the following docs:
 
 * [Testing with Postman](https://docs.hummingbot.org/gateway/testing/)
 * [Using Gateway with Hummingbot](https://docs.hummingbot.org/gateway/setup/)
+
+## Updating to the Latest Version of Hummingbot
+
+Hummingbot and Hummingbot Gateway are updated on a monthly basis, with each new version marked by a code release on Github and DockerHub, accompanied by the publication of comprehensive release notes. To upgrade to the most recent version, you just need to pull the `latest` Docker images.
+
+Follow the steps below to upgrade your Hummingbot system:
+
+1. **Ensure no containers are running**
+
+   Before you initiate the update process, it is crucial to verify that no Docker containers are currently running. Use the following command to shut down any active containers:
+
+   ```
+   docker compose down
+   ```
+
+2. **Fetch the latest Docker Hummingbot image**
+
+   Once you have confirmed that no containers are running, proceed to pull the latest Hummingbot Docker image. Use the following command to accomplish this:
+
+   ```
+   docker pull hummingbot/hummingbot
+   ```
+3. **Fetch the latest Docker Gateway image**
+
+   Next, we'll need to also pull the latest Docker Gateway image
+
+   ```
+   docker pull hummingbot/gateway
+   ```
+
+4. **Start the updated containers**
+
+   Having pulled the latest Docker image, you can now start up your containers. They will be running the latest version of Hummingbot. Use the following command to start the containers:
+
+   ```
+   docker compose up -d
+   ```
+
+With these steps, you will have successfully updated your Hummingbot + Gateway to the latest version.

@@ -24,7 +24,7 @@ services:
 
   gateway:
     container_name: gateway
-    image: hummingbot/gateway:development
+    image: hummingbot/gateway:latest
     ports:
       - "15888:15888"
       - "8080:8080"
