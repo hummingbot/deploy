@@ -149,17 +149,6 @@ prompt_copy_certs () {
   fi
 }
 
-prompt_copy_lists () {
-  echo
-  read -p "Do you want to generate default token lists? [Y/N] >>> " PROCEED
-  if [[ "$PROCEED" == "Y" || "$PROCEED" == "y" ]]
-  then
-    mkdir $CONF_FOLDER/lists
-    sudo chmod a+rw $CONF_FOLDER/lists
-    docker cp $INSTANCE_NAME:/home/gateway/src/templates/lists/. $CONF_FOLDER/lists/
-  fi
-}
-
 # Execute docker commands
 create_instance () {
    echo
@@ -191,7 +180,6 @@ prompt_proceed
 if [[ "$PROCEED" == "Y" || "$PROCEED" == "y" ]]
 then
  create_instance
- prompt_copy_lists
 else
  echo "Aborted"
  echo

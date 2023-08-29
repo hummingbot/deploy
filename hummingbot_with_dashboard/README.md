@@ -85,3 +85,43 @@ Go to http://localhost:8501 in your browser to see the Dashboard.
 Dashboard is a new experimental visualization layer for Hummingbot instances. For more information, see:
 * [Deploying Hummingbot + Dashboard on AWS](https://www.youtube.com/watch?v=xp_A8tZKKiA)
 * [Kicking Off the Hummingbot Dashboard Community Project](https://blog.hummingbot.org/hummingbot-dashboard-community-project/)
+
+
+## Updating to the Latest Version of Hummingbot + Dashboard
+
+Hummingbot and Hummingbot Gateway are updated on a monthly basis, with each new version marked by a code release on Github and DockerHub, accompanied by the publication of comprehensive release notes. To upgrade to the most recent version, you just need to pull the `latest` Docker images.
+
+Follow the steps below to upgrade your Hummingbot system:
+
+1. **Ensure no containers are running**
+
+   Before you initiate the update process, it is crucial to verify that no Docker containers are currently running. Use the following command to shut down any active containers:
+
+   ```
+   docker compose down
+   ```
+
+2. **Fetch the latest Docker Hummingbot image**
+
+   Once you have confirmed that no containers are running, proceed to pull the latest Hummingbot Docker image. Use the following command to accomplish this:
+
+   ```
+   docker pull hummingbot/hummingbot
+   ```
+3. **Fetch the latest Docker Dashboard image**
+
+   Next, we'll need to also pull the latest Docker Dashboard image
+
+   ```
+   docker pull hummingbot/dashboard
+   ```
+
+4. **Start the updated containers**
+
+   Having pulled the latest Docker image, you can now start up your containers. They will be running the latest version of Hummingbot. Use the following command to start the containers:
+
+   ```
+   docker compose up -d
+   ```
+
+With these steps, you will have successfully updated your Hummingbot + Gateway to the latest version.

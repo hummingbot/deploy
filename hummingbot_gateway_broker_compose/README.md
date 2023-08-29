@@ -129,7 +129,7 @@ The final `environment` section of the YAML file should look like this:
 
 Afterwards, save the file.
 
-### 4. Recreate network
+### 6. Recreate network
 
 Now, recreate the Compose project:
 ```
@@ -157,7 +157,7 @@ To get started with Hummingbot, check out the following docs:
 * [Quickstart Guide](https://docs.hummingbot.org/quickstart/)
 * [Hummingbot FAQ](https://docs.hummingbot.org/faq/)
 
-### 5. Configure EMQX Broker
+### 7. Configure EMQX Broker
 
 Attach to the EMQX Broker `emqx` instance:
 ```
