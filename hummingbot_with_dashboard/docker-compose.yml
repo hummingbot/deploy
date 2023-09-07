@@ -22,5 +22,6 @@ services:
     image: hummingbot/dashboard:latest
     volumes:
       - ./hummingbot_files/data:/home/dashboard/data
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8501:8501"
