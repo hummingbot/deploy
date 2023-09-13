@@ -1,7 +1,7 @@
 version: "3.9"
 services:
   hummingbot:
-    container_name: hummingbot
+    container_name: bot
     image: hummingbot/hummingbot:latest
     volumes:
       - "./hummingbot_files/conf:/home/hummingbot/conf"
