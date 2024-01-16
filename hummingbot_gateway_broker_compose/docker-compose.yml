@@ -7,6 +7,7 @@ services:
       - "./hummingbot_files/conf:/conf"
       - "./hummingbot_files/conf/connectors:/conf/connectors"
       - "./hummingbot_files/conf/strategies:/conf/strategies"
+      - "./hummingbot_files/conf/scripts:/conf/scripts"
       - "./hummingbot_files/logs:/logs"
       - "./hummingbot_files/data:/data"
       - "./hummingbot_files/scripts:/scripts"
