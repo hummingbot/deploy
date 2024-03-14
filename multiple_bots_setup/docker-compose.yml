@@ -8,8 +8,8 @@ services:
       - ./credentials/master_account/connectors:/home/hummingbot/conf/connectors
       - ./instances/bot_1/logs:/home/hummingbot/logs
       - ./instances/bot_1/data:/home/hummingbot/data
-      - ./script_config:/home/hummingbot/conf/scripts
-      - ./controllers_config:/home/hummingbot/conf/controllers
+      - ./conf/scripts:/home/hummingbot/conf/scripts
+      - ./conf/controllers:/home/hummingbot/conf/controllers
 #    environment:
 #      - CONFIG_PASSWORD=a
 #      - CONFIG_FILE_NAME=v2_generic_with_controllers.py
@@ -29,8 +29,8 @@ services:
       - ./credentials/master_account/connectors:/home/hummingbot/conf/connectors
       - ./instances/bot_2/logs:/home/hummingbot/logs
       - ./instances/bot_2/data:/home/hummingbot/data
-      - ./script_config:/home/hummingbot/conf/scripts
-      - ./controllers_config:/home/hummingbot/conf/controllers
+      - ./conf/scripts:/home/hummingbot/conf/scripts
+      - ./conf/controllers:/home/hummingbot/conf/controllers
 #    environment:
 #      - CONFIG_PASSWORD=a
 #      - CONFIG_FILE_NAME=v2_generic_with_controllers.py
@@ -42,3 +42,4 @@ services:
           max-file: 5
     tty: true
     stdin_open: true
+
