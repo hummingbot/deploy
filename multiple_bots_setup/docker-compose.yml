@@ -10,8 +10,8 @@ services:
       - ./instances/bot_1/data:/home/hummingbot/data
       - ./conf/scripts:/home/hummingbot/conf/scripts
       - ./conf/controllers:/home/hummingbot/conf/controllers
-#    environment:
-#      - CONFIG_PASSWORD=a
+    environment:
+      - CONFIG_PASSWORD=a
 #      - CONFIG_FILE_NAME=v2_generic_with_controllers.py
 #      - SCRIPT_CONFIG=conf_v2_generic_with_controllers_1.yml
     logging:
@@ -31,8 +31,8 @@ services:
       - ./instances/bot_2/data:/home/hummingbot/data
       - ./conf/scripts:/home/hummingbot/conf/scripts
       - ./conf/controllers:/home/hummingbot/conf/controllers
-#    environment:
-#      - CONFIG_PASSWORD=a
+    environment:
+      - CONFIG_PASSWORD=a
 #      - CONFIG_FILE_NAME=v2_generic_with_controllers.py
 #      - SCRIPT_CONFIG=conf_v2_generic_with_contorllers_2.yml
     logging:
