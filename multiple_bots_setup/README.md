@@ -1,6 +1,6 @@
 # Deploy Multiple Hummingbot Instances with different profiles
 
-This installs two [Hummingbot](https://github.com/hummingbot/hummingbot) instances and you can choose whether the bots use a **master_account** or **sub_accounts** for credentials and API keys. This is useful if you have multiple API keys or subaccounts setup on exchanges and want an easy way to switch between them. 
+This guide explains how to install two [Hummingbot](https://github.com/hummingbot/hummingbot) instances. You can choose to configure the bots to use either a **master_account** or **sub_accounts** for credentials and API keys. This feature is particularly useful if you manage multiple API keys or have set up subaccounts on exchanges and wish for an easy method to switch between them.
 
 ## Prerequisites
 
@@ -21,24 +21,20 @@ The output should be: `Docker Compose version v2.17.2` or similar. Ensure that y
 
 ## 1. Clone the **deploy-examples** repo
 
-Clone this repo to your machine and go to the folder:
+Clone the repository to your machine and navigate to the folder:
+
 ```
 git clone https://github.com/hummingbot/deploy-examples.git
 cd deploy-examples/multiple_bots_setupp
 ```
 
-Alternatively, copy the `docker-compose.yml` file to a directory on your machine where you want to store your Hummingbot files. 
-
-This is the "root folder" where your encrypted keys, scripts, trades, configs, logs, and other files related to your bots will be saved.
-
-
 ## 2. Initial Configuration
 
 ### Create sub_account folder
 
-Initially, both bots will use the **master_account** by default but let's say we want to configure the first bot to use the **master_account** and the second bot will use a **sub_account** with a different Hummingbot password and API keys from the master account. To do this, follow the instructions below - 
+By default, both bots will utilize the **master_account**. However, to configure the first bot with the **master_account** and the second bot with a **sub_account**—using a different Hummingbot password and API keys from the **master account**—follow the instructions below:
 
-Create a new folder under the **multiple_bots_setup/credentials** folder named **sub_account**. There should now be two folders present 
+Create a new folder named **sub_account** under the **multiple_bots_setup/credentials** folder, resulting in two folders:
 
 ```
 multiple_bots_setup/
@@ -50,7 +46,7 @@ multiple_bots_setup/
 
 ### Modify the Docker Compose file
 
-Open the Docker Compose file and in the **bot_2** section change the volumes for the credentials folder to point to the **sub_account** folder we just created and also comment out the **environment** & **CONFIG_PASSWORD** fields since we will be changing the password.
+Edit the Docker Compose file, updating the **bot_2** section to redirect the credentials folder to the newly created **sub_account** folder. Also, comment out the **environment** and **CONFIG_PASSWORD** fields for now, as we will be updating the password.
 
 ```bash hl_lines="5-6 12"
   bot_2:
@@ -77,18 +73,17 @@ Open the Docker Compose file and in the **bot_2** section change the volumes for
 
 ```
 
-Save the changes
+Save your changes
 
 ### Launch Hummingbot
 
-
-From the root folder, run the following command to pull the image and start the instance:
+From the root folder, run the following command to download the image and start the instances:
 
 ```
 docker compose up -d
 ```
 
-After the images have been downloaded, you should see the following output:
+Upon successful download, you should see an output similar to:
 ```
 [+] Running 4/4
  ⠿ Network multiple_bots_setup                                Created
@@ -97,25 +92,28 @@ After the images have been downloaded, you should see the following output:
  
 ```
 
+Both bots will be running but we will need to configure **bot_2** first so we will need to attach to it
+
 ```
 docker attach bot_2
 ```
 
-Set your preferred password, in this example let's use the letter **b** as the password for the sub_account
-
-After setting the password, you can also proceed to enter the API keys for your sub accounts. 
-
-Once you are done exit out of the Hummingbot client
+Set your preferred password for the **sub_account**, using **b** as an example. After setting the password, proceed to enter the API keys for your sub-accounts. Once completed, exit the Hummingbot client with:
 
 ```
 exit
 ```
 
-Then do **docker compose down** to exit out all the running instances
+Then use **docker compose down** to exit out all the running instances
 
-### Modify Docker Compose
 
-Next, we want to edit the Docker Compose file again to set the password to autostart. Uncomment the **environment** field as well as the **CONFIG_PASSWORD** and enter the password we set for bot_2 which is "b"
+```
+docker compose down
+```
+
+### Update Docker Compose configuration
+
+Edit the Docker Compose file again to enable auto-start with the new password. Uncomment the **environment** section and the **CONFIG_PASSWORD**, setting the password for **bot_2** as "**b**":
 
 ```bash hl_lines="5-6 12"
   bot_2:
@@ -144,7 +142,7 @@ Next, we want to edit the Docker Compose file again to set the password to autos
 
 ### Relaunch Hummingbot
 
-Make sure to save the changes made above to the Docker Compose file and start the bots by running:
+After saving the updates to the Docker Compose file, restart the bots by running:
 
 ```
 docker compose up -d
@@ -160,7 +158,7 @@ docker attach [container name]
 
 ### Adding more bots
 
-You have now configured a bot with entirely different credentials. If you want to add more bots, you can choose which credentials they use just by changing the credentials folder and the **CONFIG_PASSWORD** field. For example, if we want to run a third bot using the **sub_account** credentials we just add the following to the Docker Compose file. 
+Following this configuration, you can add more bots with different credentials by simply adjusting the **credentials** folder and **CONFIG_PASSWORD** field as needed. For instance, to add a third bot using **sub_account** credentials, append the Docker Compose file accordingly.
 
 ```bash hl_lines="1-2 5-6 12"
   bot_3:
