@@ -25,7 +25,7 @@ Clone the repository to your machine and navigate to the folder:
 
 ```
 git clone https://github.com/hummingbot/deploy-examples.git
-cd deploy-examples/multiple_bots_setupp
+cd deploy-examples/multiple_bots_setup
 ```
 
 ## 2. Initial Configuration
@@ -219,4 +219,23 @@ Follow the steps below to upgrade your Hummingbot system:
    ```
 
 With these steps, you will have successfully updated your Hummingbot to the latest version.
+
+## Deleting unused Docker images
+
+Use the below command to manually remove unused Docker images and free up space
+
+```
+docker rmi [image_name]
+```
+
+To remove all unused images, not just dangling ones, you can use:
+
+```
+docker image prune -a
+```
+
+This command removes all images without at least one container associated with them. Use it with caution, as it can remove images that you may wish to keep.
+
+
+
 
