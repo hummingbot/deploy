@@ -10,6 +10,7 @@ services:
       - ./instances/bot_1/data:/home/hummingbot/data
       - ./conf/scripts:/home/hummingbot/conf/scripts
       - ./conf/controllers:/home/hummingbot/conf/controllers
+      - ./hummingbot_files/certs:/home/hummingbot/certs
     environment:
       - CONFIG_PASSWORD=a
 #      - CONFIG_FILE_NAME=v2_generic_with_controllers.py
@@ -31,6 +32,7 @@ services:
       - ./instances/bot_2/data:/home/hummingbot/data
       - ./conf/scripts:/home/hummingbot/conf/scripts
       - ./conf/controllers:/home/hummingbot/conf/controllers
+      - ./hummingbot_files/certs:/home/hummingbot/certs
     environment:
       - CONFIG_PASSWORD=a
 #      - CONFIG_FILE_NAME=v2_generic_with_controllers.py
