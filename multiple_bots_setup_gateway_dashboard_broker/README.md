@@ -1,4 +1,4 @@
-# Deploy Multiple Hummingbot Instances with different profiles
+# Deploy Multiple Instances with Gateway and Dashboard
 
 This guide explains how to install two [Hummingbot](https://github.com/hummingbot/hummingbot) instances. You can choose to configure the bots to use either a **master_account** or **sub_accounts** for credentials and API keys. This feature is particularly useful if you manage multiple API keys or have set up subaccounts on exchanges and wish for an easy method to switch between them.
 
@@ -25,7 +25,7 @@ Clone the repository to your machine and navigate to the folder:
 
 ```
 git clone https://github.com/hummingbot/deploy-examples.git
-cd deploy-examples/multiple_bots_setup
+cd deploy-examples/multiple_bots_setupp
 ```
 
 ## 2. Initial Configuration
@@ -188,6 +188,98 @@ Following this configuration, you can add more bots with different credentials b
 Here we added the name of the new bot to **bot_3**, made sure the credentials volume is mapped to the **sub_account** folder and set the autostart password for **sub_account** which is **b**
 
 
+## Running Gateway 
+
+### Set Permissions 
+
+Run this command from your root folder to grant read/write permission to the `hummingbot_files` and `gateway_files` sub-folders:
+
+```
+sudo chmod -R a+rw ./hummingbot_files ./gateway_files
+```
+
+### Start the instance 
+
+From the root folder, run the following command to pull the image and start the instance:
+
+```
+docker compose up -d
+```
+
+Run the following command to generate Gateway certificates:
+
+```
+gateway generate-certs
+```
+
+Afterwards, run `exit` to exit Hummingbot. 
+
+### Stop the running containers
+
+```
+docker compose down
+```
+
+### Modify YAML file
+
+Now, use an IDE like [VSCode](https://code.visualstudio.com/) to edit the `docker-compose.yml` file.
+
+Edit the section that defines the `CONFIG_PASSWORD` and `CONFIG_FILE_NAME` environment variables:
+
+```yaml
+  hummingbot:
+    # environment:
+      #  - CONFIG_PASSWORD=a
+  gateway:
+    # environment:
+      #  - GATEWAY_PASSPHRASE=a
+```
+
+Uncomment out:
+ * The `environment:` lines
+ * The `CONFIG_PASSWORD` lines: add your Hummingbot password
+ * The `GATEWAY_PASSPHRASE` line: add the passphrase you used to generate the certificates
+
+The final `environment` section of the YAML file should look like this:
+```yaml
+  bot:
+    environment:
+      - CONFIG_PASSWORD=a
+  gateway:
+    environment:
+      - GATEWAY_PASSPHRASE=a
+```
+
+Afterwards, save the file.
+
+### Restart and attach to containers
+
+Now, recreate the Compose project:
+```
+docker compose up -d
+```
+
+Attach to the `hummingbot` instance. If you have defined `CONFIG_PASSWORD` in the YAML file, you don't need to enter it again:
+
+```
+docker attach hummingbot
+```
+
+After you enter your password, you should now see `GATEWAY:ONLINE` in the upper-right hand corner.
+
+Open a new Terminal/Bash window. In it, attach to the Gateway `gateway` instance to see its logs:
+
+```
+docker attach gateway
+```
+
+See [Gateway](https://docs.hummingbot.org/gateway/) for more details on how to configure it for use with Hummingbot.
+
+
+## Running Dashboard 
+
+Go to http://localhost:8501 in your browser to see the Dashboard.
+
 ## Updating to the Latest Version of Hummingbot
 
 Hummingbot and Hummingbot Gateway are updated on a monthly basis, with each new version marked by a code release on Github and DockerHub, accompanied by the publication of comprehensive release notes. To upgrade to the most recent version, you just need to pull the `latest` Docker images.
@@ -219,23 +311,4 @@ Follow the steps below to upgrade your Hummingbot system:
    ```
 
 With these steps, you will have successfully updated your Hummingbot to the latest version.
-
-## Deleting unused Docker images
-
-Use the below command to manually remove unused Docker images and free up space
-
-```
-docker rmi [image_name]
-```
-
-To remove all unused images, not just dangling ones, you can use:
-
-```
-docker image prune -a
-```
-
-This command removes all images without at least one container associated with them. Use it with caution, as it can remove images that you may wish to keep.
-
-
-
 
