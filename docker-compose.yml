@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   bot_1:
     container_name: bot_1
