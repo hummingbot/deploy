@@ -1,6 +1,0 @@
-markets: {}
-candles_config: []
-controllers_config:
-  - conf_market_making.dman_maker_1.yml
-config_update_interval: 20
-script_file_name: v2_generic_with_controllers.py
