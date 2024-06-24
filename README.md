@@ -1,0 +1,69 @@
+# hummingbot-deploy
+
+Welcome to the Hummingbot Deploy project. This guide will walk you through the steps to deploy multiple trading bots using a centralized dashboard and a service backend.
+
+## Prerequisites
+
+- Docker must be installed on your machine. If you do not have Docker installed, you can download and install it from [Docker's official site](https://www.docker.com/products/docker-desktop).
+
+## Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/cardosofede/hummingbot-deploy.git
+   cd hummingbot-deploy
+   ```
+
+## Running the Application
+
+1. **Start and configure the Application**
+   - Run the following command to download and start the app.
+   - ```bash
+     bash setup.sh
+     ```
+2. **Access the dashboard:**
+   - Open your web browser and go to `localhost:8501`.
+
+3. **API Keys and Credentials:**
+   - Go to the credentials page
+   - You add credentials to the master account by picking the exchange and adding the API key and secret. This will encrypt the keys and store them in the master account folder.
+   - If you are managing multiple accounts you can create a new one and start adding new credentials there.
+
+4. **Create a config for PMM Simple**
+   - Go to the tab PMM Simple and create a new configuration. Soon will be released a video explaining how the strategy works.
+
+5. **Deploy the configuration**
+   - Go to the Deploy tab, select a name for your bot, the image dardonacci/hummingbot:latest and the configuration you just created.
+   - Press the button to create a new instance.
+
+6. **Check the status of the bot**
+   - Go to the Instances tab and check the status of the bot.
+     - If it's not available is because the bot is starting, wait a few seconds and refresh the page.
+     - If it's running, you can check the performance of it in the graph, refresh to see the latest data.
+     - If it's stopped, probably the bot had an error, you can check the logs in the container to understand what happened.
+
+7. **[Optional] Check the Backend API**
+   -  Open your web browser and go to `localhost:8000/docs`.
+
+## Dashboard Functionalities
+
+- **D-Man v2 Configurations:**
+  - Create and select configurations for the Daemon v2 strategy.
+  - Deploy the selected configurations.
+
+- **Bot Management:**
+  - Visualize bot performance in real-time.
+  - Stop and archive running bots.
+
+## Tutorial
+
+To get started with deploying your first bot, follow these step-by-step instructions:
+
+1. **Prepare your bot configurations:**
+   - Ensure you have the correct YAML configuration files in your `master_account` folder.
+
+2. **Deploy a bot:**
+   - Use the dashboard UI to select and deploy your configurations.
+
+3. **Monitor and Manage:**
+   - Track bot performance and make adjustments as needed through the dashboard.
