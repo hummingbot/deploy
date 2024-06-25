@@ -2,7 +2,7 @@
 
 # Pulling the required Docker images
 docker compose -f docker-compose-dev.yml pull
-docker pull humingbot/hummingbot:latest
+docker pull hummingbot/hummingbot:latest
 
 # Creating .env file with the required environment variables
 echo "CONFIG_PASSWORD=a" > .env
