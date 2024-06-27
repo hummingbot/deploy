@@ -5,13 +5,14 @@ Welcome to the Hummingbot Deploy project. This guide will walk you through the s
 ## Prerequisites
 
 - Docker must be installed on your machine. If you do not have Docker installed, you can download and install it from [Docker's official site](https://www.docker.com/products/docker-desktop).
+- If you are on Windows, you'll need to setup WSL2 and a Linux terminal like Ubuntu. Make sure to run the commands below in a Linux terminal and not in the Windows command prompt or Powershell.
 
 ## Installation
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/cardosofede/hummingbot-deploy.git
-   cd hummingbot-deploy
+   git clone https://github.com/hummingbot/deploy.git
+   cd deploy
    ```
 
 ## Running the Application
@@ -22,7 +23,7 @@ Welcome to the Hummingbot Deploy project. This guide will walk you through the s
      bash setup.sh
      ```
 2. **Access the dashboard:**
-   - Open your web browser and go to `localhost:8501`.
+   - Open your web browser and go to `localhost:8501`. Replace `localhost` with the IP of your server if using a cloud server.
 
 3. **API Keys and Credentials:**
    - Go to the credentials page
@@ -33,7 +34,7 @@ Welcome to the Hummingbot Deploy project. This guide will walk you through the s
    - Go to the tab PMM Simple and create a new configuration. Soon will be released a video explaining how the strategy works.
 
 5. **Deploy the configuration**
-   - Go to the Deploy tab, select a name for your bot, the image dardonacci/hummingbot:latest and the configuration you just created.
+   - Go to the Deploy tab, select a name for your bot, the image hummingbot/hummingbot:latest and the configuration you just created.
    - Press the button to create a new instance.
 
 6. **Check the status of the bot**
@@ -47,9 +48,9 @@ Welcome to the Hummingbot Deploy project. This guide will walk you through the s
 
 ## Dashboard Functionalities
 
-- **D-Man v2 Configurations:**
-  - Create and select configurations for the Daemon v2 strategy.
-  - Deploy the selected configurations.
+- **Config Generator:**
+  - Create and select configurations for different v2 strategies.
+  - Backtest and deploy the selected configurations.
 
 - **Bot Management:**
   - Visualize bot performance in real-time.
@@ -60,7 +61,7 @@ Welcome to the Hummingbot Deploy project. This guide will walk you through the s
 To get started with deploying your first bot, follow these step-by-step instructions:
 
 1. **Prepare your bot configurations:**
-   - Ensure you have the correct YAML configuration files in your `master_account` folder.
+   - Select a controller and backtest your controller configs.
 
 2. **Deploy a bot:**
    - Use the dashboard UI to select and deploy your configurations.
