@@ -5,8 +5,11 @@ services:
     ports:
       - "8501:8501"
     environment:
+        - AUTH_SYSTEM_ENABLED=False
         - BACKEND_API_HOST=backend-api
         - BACKEND_API_PORT=8000
+    volumes:
+      - credentials.yml:/dashboard/credentials.yml
     networks:
         - emqx-bridge
   backend-api:
