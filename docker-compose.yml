@@ -10,6 +10,7 @@ services:
         - BACKEND_API_PORT=8000
     volumes:
       - credentials.yml:/dashboard/credentials.yml
+      - ./pages:/dashboard/frontend/pages
     networks:
         - emqx-bridge
   backend-api:
