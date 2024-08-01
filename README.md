@@ -46,6 +46,59 @@ Welcome to the Hummingbot Deploy project. This guide will walk you through the s
 7. **[Optional] Check the Backend API**
    -  Open your web browser and go to `localhost:8000/docs`.
 
+## Authentication
+
+Authentication is disabled by default. To enable Dashboard Authentication please follow the steps below: 
+
+**Set Credentials (Optional):**
+
+The dashboard uses `admin` and `abc` as the default username and password respectively. It's strongly recommended to change these credentials for enhanced security.:
+
+- Navigate to the `deploy` folder and open the `credentials.yml` file.
+- Add or modify the current username / password and save the changes afterward
+  
+  ```
+  credentials:
+    usernames:
+      admin:
+        email: admin@gmail.com
+        name: Admin User
+        logged_in: False
+        password: abc
+  cookie:
+    expiry_days: 0
+    key: some_signature_key # Must be string
+    name: some_cookie_name
+  pre-authorized:
+    emails:
+    - admin@admin.com
+  ```  
+### Enable Authentication
+
+- Ensure the dashboard container is not running.
+- Open the `docker-compose.yml` file within the `deploy` folder using a text editor.
+- Locate the environment variable `AUTH_SYSTEM_ENABLED` under the dashboard service configuration.
+  
+  ```
+  services:
+  dashboard:
+    container_name: dashboard
+    image: hummingbot/dashboard:latest
+    ports:
+      - "8501:8501"
+    environment:
+        - AUTH_SYSTEM_ENABLED=True
+        - BACKEND_API_HOST=backend-api
+        - BACKEND_API_PORT=8000
+  ```
+- Change the value of `AUTH_SYSTEM_ENABLED` from `False` to `True`.
+- Save the changes to the `docker-compose.yml` file.
+- Relaunch Dashboard by running `bash setup.sh`
+  
+### Known Issues
+- Refreshing the browser window may log you out and display the login screen again. This is a known issue that might be addressed in future updates.
+
+
 ## Dashboard Functionalities
 
 - **Config Generator:**
