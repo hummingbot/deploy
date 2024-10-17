@@ -25,7 +25,7 @@ class GenericV2StrategyWithCashOutConfig(StrategyV2ConfigBase):
     max_controller_drawdown: Optional[float] = None
     performance_report_interval: int = 1
     rebalance_interval: Optional[int] = None
-    extra_inventory: Optional[float] = 0.01
+    extra_inventory: Optional[float] = 0.02
     min_amount_to_rebalance_usd: Decimal = Decimal("10")
     asset_to_rebalance: str = "USDT"
 
@@ -117,14 +117,14 @@ class GenericV2StrategyWithCashOut(StrategyV2Base):
                         filter_func=lambda x: x.is_active and x.trading_pair == trading_pair and x.connector_name == connector_name
                     )
                     unmatched_amount = sum([executor.filled_amount_quote for executor in active_executors_for_pair if executor.side == TradeType.SELL]) - sum([executor.filled_amount_quote for executor in active_executors_for_pair if executor.side == TradeType.BUY])
-                    balance += unmatched_amount
+                    balance += unmatched_amount / mid_price
                     base_balance_diff = balance - amount_with_safe_margin
                     abs_balance_diff = abs(base_balance_diff)
                     trading_rules_condition = abs_balance_diff > trading_rule.min_order_size and abs_balance_diff * mid_price > trading_rule.min_notional_size and abs_balance_diff * mid_price > self.config.min_amount_to_rebalance_usd
                     order_type = OrderType.MARKET
                     if base_balance_diff > 0:
                         if trading_rules_condition:
-                            self.logger().info(f"Rebalance: Selling {amount_with_safe_margin} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount}")
+                            self.logger().info(f"Rebalance: Selling {amount_with_safe_margin} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount / mid_price}")
                             connector.sell(
                                 trading_pair=trading_pair,
                                 amount=abs_balance_diff,
@@ -179,6 +179,7 @@ class GenericV2StrategyWithCashOut(StrategyV2Base):
         else:
             current_global_drawdown = self.max_global_pnl - current_global_pnl
             if current_global_drawdown > self.config.max_global_drawdown:
+                self.drawdown_exited_controllers.extend(list(self.controllers.keys()))
                 self.logger().info("Global drawdown reached. Stopping the strategy.")
                 HummingbotApplication.main_application().stop()
 
