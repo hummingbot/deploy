@@ -8,6 +8,8 @@ services:
         - AUTH_SYSTEM_ENABLED=False
         - BACKEND_API_HOST=backend-api
         - BACKEND_API_PORT=8000
+        - USERNAME=admin
+        - PASSWORD=admin
     volumes:
       - ./credentials.yml:/home/dashboard/credentials.yml
       - ./pages:/home/dashboard/frontend/pages
