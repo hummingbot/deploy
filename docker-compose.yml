@@ -28,6 +28,8 @@ services:
     environment:
       - BROKER_HOST=emqx
       - BROKER_PORT=1883
+      - USERNAME=admin
+      - PASSWORD=admin
     networks:
       - emqx-bridge
   emqx:
