@@ -26,7 +26,7 @@ class GenericV2StrategyWithCashOutConfig(StrategyV2ConfigBase):
     performance_report_interval: int = 1
     rebalance_interval: Optional[int] = None
     extra_inventory: Optional[float] = 0.02
-    min_amount_to_rebalance_usd: Decimal = Decimal("10")
+    min_amount_to_rebalance_usd: Decimal = Decimal("8")
     asset_to_rebalance: str = "USDT"
 
 
@@ -124,21 +124,21 @@ class GenericV2StrategyWithCashOut(StrategyV2Base):
                     order_type = OrderType.MARKET
                     if base_balance_diff > 0:
                         if trading_rules_condition:
-                            self.logger().info(f"Rebalance: Selling {amount_with_safe_margin} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount / mid_price}")
+                            self.logger().debug(f"Rebalance: Selling {amount_with_safe_margin} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount / mid_price}")
                             connector.sell(
                                 trading_pair=trading_pair,
                                 amount=abs_balance_diff,
                                 order_type=order_type,
                                 price=mid_price)
                         else:
-                            self.logger().info("Skipping rebalance due a low amount to sell that may cause future imbalance")
+                            self.logger().debug("Skipping rebalance due a low amount to sell that may cause future imbalance")
                     else:
                         if not trading_rules_condition:
                             amount = max([self.config.min_amount_to_rebalance_usd / mid_price, trading_rule.min_order_size, trading_rule.min_notional_size / mid_price])
-                            self.logger().info(f"Rebalance: Buying for a higher value to avoid future imbalance {amount} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount}")
+                            self.logger().debug(f"Rebalance: Buying for a higher value to avoid future imbalance {amount} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount}")
                         else:
                             amount = abs_balance_diff
-                            self.logger().info(f"Rebalance: Buying {amount} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount}")
+                            self.logger().debug(f"Rebalance: Buying {amount} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount}")
                         connector.buy(
                             trading_pair=trading_pair,
                             amount=amount,
