@@ -31,4 +31,6 @@ def private_pages():
         Page("frontend/pages/orchestration/launch_bot_v2/app.py", "Deploy V2", "🚀"),
         Page("frontend/pages/orchestration/credentials/app.py", "Credentials", "🔑"),
         Page("frontend/pages/orchestration/portfolio/app.py", "Portfolio", "💰"),
+        Section("Bot Performance"),
+        Page("frontend/pages/performance/bot_performance/app.py", "Strategy Performance", "📊"),
     ]
