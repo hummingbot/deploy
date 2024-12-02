@@ -3,7 +3,6 @@ import streamlit as st
 from hummingbot.core.data_type.common import TradeType
 from plotly.subplots import make_subplots
 
-from frontend.components.backtesting import backtesting_section
 from frontend.components.config_loader import get_default_config_loader
 from frontend.components.save_config import render_save_config
 from frontend.pages.config.grid_strike.user_inputs import user_inputs
@@ -17,11 +16,9 @@ from frontend.visualization.utils import add_traces_to_fig
 def get_grid_range_traces(grid_ranges):
     """Generate horizontal line traces for grid ranges with different colors."""
     dash_styles = ['solid', 'dash', 'dot', 'dashdot', 'longdash']  # 5 different styles
-    
     traces = []
     buy_count = 0
     sell_count = 0
-    
     for i, grid_range in enumerate(grid_ranges):
         # Set color based on trade type
         if grid_range["side"] == TradeType.BUY:
@@ -32,7 +29,6 @@ def get_grid_range_traces(grid_ranges):
             color = 'rgba(255, 0, 0, 1)'  # Bright red for sell
             dash_style = dash_styles[sell_count % len(dash_styles)]
             sell_count += 1
-        
         # Start price line
         traces.append(go.Scatter(
             x=[],  # Will be set to full range when plotting
@@ -42,7 +38,6 @@ def get_grid_range_traces(grid_ranges):
             name=f'Range {i} Start: {float(grid_range["start_price"]):,.2f} ({grid_range["side"].name})',
             hoverinfo='name'
         ))
-        
         # End price line
         traces.append(go.Scatter(
             x=[],  # Will be set to full range when plotting
@@ -52,8 +47,8 @@ def get_grid_range_traces(grid_ranges):
             name=f'Range {i} End: {float(grid_range["end_price"]):,.2f} ({grid_range["side"].name})',
             hoverinfo='name'
         ))
-    
     return traces
+
 
 # Initialize the Streamlit page
 initialize_st_page(title="Grid Strike", icon="📊", initial_sidebar_state="expanded")
@@ -116,7 +111,7 @@ layout_updates = {
     "height": 600,  # Make the chart taller
     "yaxis": dict(
         fixedrange=False,  # Allow y-axis zooming
-        autorange=True,    # Enable auto-ranging
+        autorange=True,  # Enable auto-ranging
     )
 }
 
@@ -127,6 +122,7 @@ fig.update_layout(
 
 # Use Streamlit's functionality to display the plot
 st.plotly_chart(fig, use_container_width=True)
+
 
 # Add after user inputs and before saving
 def prepare_config_for_save(config):
@@ -146,6 +142,7 @@ def prepare_config_for_save(config):
     del prepared_config["days_to_visualize"]
     return prepared_config
 
+
 # Replace the render_save_config line with:
-render_save_config(st.session_state["default_config"]["id"], 
-                  prepare_config_for_save(st.session_state["default_config"]))
+render_save_config(st.session_state["default_config"]["id"],
+                   prepare_config_for_save(st.session_state["default_config"]))

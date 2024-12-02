@@ -1,6 +1,6 @@
 from decimal import Decimal
-from typing import Dict, List
 
+import plotly.graph_objs as go
 import streamlit as st
 from hummingbot.core.data_type.common import OrderType, PositionMode, TradeType
 
@@ -16,23 +16,20 @@ def get_price_range_defaults(connector_name: str, trading_pair: str, interval: s
             interval=interval,
             days=days
         )
-        
         min_price = float(candles['low'].quantile(0.05))
         max_price = float(candles['high'].quantile(0.95))
-        
         return round(min_price, 2), round(max_price, 2)
     except Exception as e:
         st.warning(f"Could not fetch price data: {str(e)}. Using default values.")
         return 40000.0, 60000.0  # Fallback defaults
 
+
 def get_grid_range_traces(grid_ranges):
     """Generate horizontal line traces for grid ranges with different colors."""
     dash_styles = ['solid', 'dash', 'dot', 'dashdot', 'longdash']  # 5 different styles
-    
     traces = []
     buy_count = 0
     sell_count = 0
-    
     for i, grid_range in enumerate(grid_ranges):
         # Set color based on trade type
         if grid_range["side"] == TradeType.BUY:
@@ -43,7 +40,6 @@ def get_grid_range_traces(grid_ranges):
             color = 'rgba(255, 0, 0, 1)'  # Bright red for sell
             dash_style = dash_styles[sell_count % len(dash_styles)]
             sell_count += 1
-        
         # Start price line
         traces.append(go.Scatter(
             x=[],  # Will be set to full range when plotting
@@ -53,7 +49,6 @@ def get_grid_range_traces(grid_ranges):
             name=f'Range {i} Start: {float(grid_range["start_price"]):,.2f} ({grid_range["side"].name})',
             hoverinfo='name'
         ))
-        
         # End price line
         traces.append(go.Scatter(
             x=[],  # Will be set to full range when plotting
@@ -63,15 +58,12 @@ def get_grid_range_traces(grid_ranges):
             name=f'Range {i} End: {float(grid_range["end_price"]):,.2f} ({grid_range["side"].name})',
             hoverinfo='name'
         ))
-    
     return traces
 
+
 def user_inputs():
-    default_config = st.session_state.get("default_config", {})
-    
     # Split the page into two columns for the expanders
     left_col, right_col = st.columns(2)
-    
     with left_col:
         # Basic trading parameters
         with st.expander("Basic Configuration", expanded=True):
@@ -82,7 +74,6 @@ def user_inputs():
                 trading_pair = st.text_input("Trading Pair", value="BTC-USDT")
             with c3:
                 leverage = st.number_input("Leverage", min_value=1, value=20)
-        
         # Visualization Configuration
         with st.expander("Chart Configuration", expanded=True):
             c1, c2, c3 = st.columns(3)
@@ -115,15 +106,12 @@ def user_inputs():
             interval,
             days_to_visualize
         )
-                
         # Grid Ranges Configuration
         with st.expander("Grid Ranges", expanded=True):
             grid_ranges = []
             num_ranges = st.number_input("Number of Grid Ranges", min_value=1, max_value=5, value=1)
-            
             for i in range(num_ranges):
                 st.markdown(f"#### Range {i}")
-                
                 # Price configuration
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
@@ -133,7 +121,6 @@ def user_inputs():
                         options=[TradeType.BUY.name, TradeType.SELL.name],
                         key=f"side_{i}"
                     )
-                
                 with c2:
                     # Set default start price based on side
                     start_price = st.number_input(
@@ -141,7 +128,6 @@ def user_inputs():
                         value=default_min,
                         key=f"start_price_{i}"
                     )
-                
                 with c3:
                     # Set default end price based on side
                     end_price = st.number_input(
@@ -149,18 +135,15 @@ def user_inputs():
                         value=default_max,
                         key=f"end_price_{i}"
                     )
-                
                 with c4:
                     total_amount_pct = st.number_input(
                         f"Amount % {i}",
                         min_value=0.0,
                         max_value=100.0,
-                        value=10.0,
+                        value=50.0,
                         key=f"amount_pct_{i}"
                     )
-                
                 st.markdown("---")
-                
                 grid_ranges.append({
                     "id": f"R{i}",
                     "start_price": Decimal(str(start_price)),
@@ -170,13 +153,12 @@ def user_inputs():
                     "open_order_type": OrderType.LIMIT_MAKER,
                     "take_profit_order_type": OrderType.LIMIT
                 })
-
     with right_col:
         # Amount configuration
         with st.expander("Amount Configuration", expanded=True):
             total_amount_quote = st.number_input(
-                "Total Amount (Quote)", 
-                min_value=0.0, 
+                "Total Amount (Quote)",
+                min_value=0.0,
                 value=1000.0,
                 help="Total amount in quote currency to use for trading"
             )
@@ -186,7 +168,6 @@ def user_inputs():
                 value=10.0,
                 help="Minimum amount for each order"
             )
-
         # Advanced Configuration
         with st.expander("Advanced Configuration", expanded=True):
             position_mode = st.selectbox(
@@ -194,7 +175,6 @@ def user_inputs():
                 options=["HEDGE", "ONEWAY"],
                 index=0
             )
-            
             c1, c2 = st.columns(2)
             with c1:
                 time_limit = st.number_input(
