@@ -3,8 +3,6 @@ import time
 from decimal import Decimal
 from typing import Dict, List, Optional, Set
 
-from pydantic import Field
-
 from hummingbot.client.hummingbot_application import HummingbotApplication
 from hummingbot.connector.connector_base import ConnectorBase
 from hummingbot.core.clock import Clock
@@ -17,13 +15,12 @@ from hummingbot.strategy_v2.models.executor_actions import CreateExecutorAction,
 
 
 class GenericV2StrategyWithCashOutConfig(StrategyV2ConfigBase):
-    script_file_name: str = Field(default_factory=lambda: os.path.basename(__file__))
+    script_file_name: str = os.path.basename(__file__)
     candles_config: List[CandlesConfig] = []
     markets: Dict[str, Set[str]] = {}
     time_to_cash_out: Optional[int] = None
     max_global_drawdown: Optional[float] = None
     max_controller_drawdown: Optional[float] = None
-    performance_report_interval: int = 1
     rebalance_interval: Optional[int] = None
     extra_inventory: Optional[float] = 0.02
     min_amount_to_rebalance_usd: Decimal = Decimal("8")
@@ -41,6 +38,8 @@ class GenericV2StrategyWithCashOut(StrategyV2Base):
     specific controller and wait until the active executors finalize their execution. The rest of the executors will
     wait until the main strategy stops them.
     """
+    performance_report_interval: int = 1
+
     def __init__(self, connectors: Dict[str, ConnectorBase], config: GenericV2StrategyWithCashOutConfig):
         super().__init__(connectors, config)
         self.config = config
@@ -50,7 +49,6 @@ class GenericV2StrategyWithCashOut(StrategyV2Base):
         self.max_global_pnl = Decimal("0")
         self.drawdown_exited_controllers = []
         self.closed_executors_buffer: int = 30
-        self.performance_report_interval: int = self.config.performance_report_interval
         self.rebalance_interval: int = self.config.rebalance_interval
         self._last_performance_report_timestamp = 0
         self._last_rebalance_check_timestamp = 0
@@ -91,7 +89,7 @@ class GenericV2StrategyWithCashOut(StrategyV2Base):
         if self.rebalance_interval and self._last_rebalance_check_timestamp + self.rebalance_interval <= self.current_timestamp:
             balance_required = {}
             for controller_id, controller in self.controllers.items():
-                connector_name = controller.config.dict().get("connector_name")
+                connector_name = controller.config.model_dump().get("connector_name")
                 if connector_name and "perpetual" in connector_name:
                     continue
                 if connector_name not in balance_required:
@@ -124,21 +122,21 @@ class GenericV2StrategyWithCashOut(StrategyV2Base):
                     order_type = OrderType.MARKET
                     if base_balance_diff > 0:
                         if trading_rules_condition:
-                            self.logger().debug(f"Rebalance: Selling {amount_with_safe_margin} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount / mid_price}")
+                            self.logger().info(f"Rebalance: Selling {amount_with_safe_margin} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount / mid_price}")
                             connector.sell(
                                 trading_pair=trading_pair,
                                 amount=abs_balance_diff,
                                 order_type=order_type,
                                 price=mid_price)
                         else:
-                            self.logger().debug("Skipping rebalance due a low amount to sell that may cause future imbalance")
+                            self.logger().info("Skipping rebalance due a low amount to sell that may cause future imbalance")
                     else:
                         if not trading_rules_condition:
                             amount = max([self.config.min_amount_to_rebalance_usd / mid_price, trading_rule.min_order_size, trading_rule.min_notional_size / mid_price])
-                            self.logger().debug(f"Rebalance: Buying for a higher value to avoid future imbalance {amount} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount}")
+                            self.logger().info(f"Rebalance: Buying for a higher value to avoid future imbalance {amount} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount}")
                         else:
                             amount = abs_balance_diff
-                            self.logger().debug(f"Rebalance: Buying {amount} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount}")
+                            self.logger().info(f"Rebalance: Buying {amount} {token} to {self.config.asset_to_rebalance}. Balance: {balance} | Executors unmatched balance {unmatched_amount}")
                         connector.buy(
                             trading_pair=trading_pair,
                             amount=amount,
@@ -154,6 +152,8 @@ class GenericV2StrategyWithCashOut(StrategyV2Base):
 
     def check_max_controller_drawdown(self):
         for controller_id, controller in self.controllers.items():
+            if controller.status != RunnableStatus.RUNNING:
+                continue
             controller_pnl = self.performance_reports[controller_id]["global_pnl_quote"]
             last_max_pnl = self.max_pnl_by_controller[controller_id]
             if controller_pnl > last_max_pnl:
