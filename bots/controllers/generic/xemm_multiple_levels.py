@@ -3,9 +3,8 @@ from decimal import Decimal
 from typing import Dict, List, Set
 
 import pandas as pd
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 
-from hummingbot.client.config.config_data_types import ClientFieldData
 from hummingbot.client.ui.interface_utils import format_df_for_printout
 from hummingbot.core.data_type.common import PriceType, TradeType
 from hummingbot.data_feed.candles_feed.data_types import CandlesConfig
@@ -19,62 +18,40 @@ class XEMMMultipleLevelsConfig(ControllerConfigBase):
     controller_name: str = "xemm_multiple_levels"
     candles_config: List[CandlesConfig] = []
     maker_connector: str = Field(
-        default="kucoin",
-        client_data=ClientFieldData(
-            prompt=lambda e: "Enter the maker connector: ",
-            prompt_on_new=True
-        ))
+        default="mexc",
+        json_schema_extra={"prompt": "Enter the maker connector: ", "prompt_on_new": True})
     maker_trading_pair: str = Field(
-        default="LBR-USDT",
-        client_data=ClientFieldData(
-            prompt=lambda e: "Enter the maker trading pair: ",
-            prompt_on_new=True
-        ))
+        default="PEPE-USDT",
+        json_schema_extra={"prompt": "Enter the maker trading pair: ", "prompt_on_new": True})
     taker_connector: str = Field(
-        default="okx",
-        client_data=ClientFieldData(
-            prompt=lambda e: "Enter the taker connector: ",
-            prompt_on_new=True
-        ))
+        default="binance",
+        json_schema_extra={"prompt": "Enter the taker connector: ", "prompt_on_new": True})
     taker_trading_pair: str = Field(
-        default="LBR-USDT",
-        client_data=ClientFieldData(
-            prompt=lambda e: "Enter the taker trading pair: ",
-            prompt_on_new=True
-        ))
+        default="PEPE-USDT",
+        json_schema_extra={"prompt": "Enter the taker trading pair: ", "prompt_on_new": True})
     buy_levels_targets_amount: List[List[Decimal]] = Field(
         default="0.003,10-0.006,20-0.009,30",
-        client_data=ClientFieldData(
-            prompt=lambda e: "Enter the buy levels targets with the following structure: (target_profitability1,amount1-target_profitability2,amount2): ",
-            prompt_on_new=True
-        ))
+        json_schema_extra={
+            "prompt": "Enter the buy levels targets with the following structure: (target_profitability1,amount1-target_profitability2,amount2): ",
+            "prompt_on_new": True})
     sell_levels_targets_amount: List[List[Decimal]] = Field(
         default="0.003,10-0.006,20-0.009,30",
-        client_data=ClientFieldData(
-            prompt=lambda e: "Enter the sell levels targets with the following structure: (target_profitability1,amount1-target_profitability2,amount2): ",
-            prompt_on_new=True
-        ))
+        json_schema_extra={
+            "prompt": "Enter the sell levels targets with the following structure: (target_profitability1,amount1-target_profitability2,amount2): ",
+            "prompt_on_new": True})
     min_profitability: Decimal = Field(
-        default=0.002,
-        client_data=ClientFieldData(
-            prompt=lambda e: "Enter the minimum profitability: ",
-            prompt_on_new=True
-        ))
+        default=0.003,
+        json_schema_extra={"prompt": "Enter the minimum profitability: ", "prompt_on_new": True})
     max_profitability: Decimal = Field(
         default=0.01,
-        client_data=ClientFieldData(
-            prompt=lambda e: "Enter the maximum profitability: ",
-            prompt_on_new=True
-        ))
+        json_schema_extra={"prompt": "Enter the maximum profitability: ", "prompt_on_new": True})
     max_executors_imbalance: int = Field(
         default=1,
-        client_data=ClientFieldData(
-            prompt=lambda e: "Enter the maximum executors imbalance: ",
-            prompt_on_new=True
-        ))
+        json_schema_extra={"prompt": "Enter the maximum executors imbalance: ", "prompt_on_new": True})
 
-    @validator("buy_levels_targets_amount", "sell_levels_targets_amount", pre=True, always=True)
-    def validate_levels_targets_amount(cls, v, values):
+    @field_validator("buy_levels_targets_amount", "sell_levels_targets_amount", mode="before")
+    @classmethod
+    def validate_levels_targets_amount(cls, v):
         if isinstance(v, str):
             v = [list(map(Decimal, x.split(","))) for x in v.split("-")]
         return v
@@ -124,6 +101,8 @@ class XEMMMultipleLevels(ControllerBase):
             active_buy_executors_target = [e.config.target_profitability == target_profitability for e in active_buy_executors]
 
             if len(active_buy_executors_target) == 0 and imbalance < self.config.max_executors_imbalance:
+                min_profitability = target_profitability - self.config.min_profitability
+                max_profitability = target_profitability + self.config.max_profitability
                 config = XEMMExecutorConfig(
                     controller_id=self.config.id,
                     timestamp=self.market_data_provider.time(),
@@ -133,14 +112,16 @@ class XEMMMultipleLevels(ControllerBase):
                                                  trading_pair=self.config.taker_trading_pair),
                     maker_side=TradeType.BUY,
                     order_amount=amount / mid_price,
-                    min_profitability=self.config.min_profitability,
+                    min_profitability=min_profitability,
                     target_profitability=target_profitability,
-                    max_profitability=self.config.max_profitability
+                    max_profitability=max_profitability
                 )
                 executor_actions.append(CreateExecutorAction(executor_config=config, controller_id=self.config.id))
         for target_profitability, amount in self.sell_levels_targets_amount:
             active_sell_executors_target = [e.config.target_profitability == target_profitability for e in active_sell_executors]
             if len(active_sell_executors_target) == 0 and imbalance > -self.config.max_executors_imbalance:
+                min_profitability = target_profitability - self.config.min_profitability
+                max_profitability = target_profitability + self.config.max_profitability
                 config = XEMMExecutorConfig(
                     controller_id=self.config.id,
                     timestamp=time.time(),
@@ -150,9 +131,9 @@ class XEMMMultipleLevels(ControllerBase):
                                                  trading_pair=self.config.maker_trading_pair),
                     maker_side=TradeType.SELL,
                     order_amount=amount / mid_price,
-                    min_profitability=self.config.min_profitability,
+                    min_profitability=min_profitability,
                     target_profitability=target_profitability,
-                    max_profitability=self.config.max_profitability
+                    max_profitability=max_profitability
                 )
                 executor_actions.append(CreateExecutorAction(executor_config=config, controller_id=self.config.id))
         return executor_actions
