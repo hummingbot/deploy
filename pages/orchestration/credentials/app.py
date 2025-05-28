@@ -101,7 +101,10 @@ config_inputs = {}
 cols = st.columns(NUM_COLUMNS)
 for i, config in enumerate(config_map):
     with cols[i % (NUM_COLUMNS - 1)]:
-        config_inputs[config] = st.text_input(config, type="password", key=f"{connector_name}_{config}")
+        if config == "custom_markets":
+            config_inputs[config] = {}
+        else:
+            config_inputs[config] = st.text_input(config, type="password", key=f"{connector_name}_{config}")
 
 with cols[-1]:
     if st.button("Submit Credentials"):
