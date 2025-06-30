@@ -117,6 +117,12 @@ if connector_name == "xrpl":
             config_inputs[field] = st.text_input(field, value=default_value, key=f"{connector_name}_{field}")
     
     if st.button("Submit Credentials"):
+        # Combine the three node URLs into a list for the backend
+        config_inputs["wss_node_urls"] = [
+            config_inputs.pop("wss_node_url"),
+            config_inputs.pop("wss_second_node_url"),
+            config_inputs.pop("wss_third_node_url"),
+        ]
         response = client.add_connector_keys(account_name, connector_name, config_inputs)
         if response:
             st.success(response)
