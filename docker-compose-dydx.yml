@@ -6,7 +6,7 @@ services:
       - "8501:8501"
     environment:
         - AUTH_SYSTEM_ENABLED=False
-        - BACKEND_API_HOST=backend-api
+        - BACKEND_API_HOST=hummingbot-api
         - BACKEND_API_PORT=8000
         - BACKEND_API_USERNAME=admin
         - BACKEND_API_PASSWORD=admin
@@ -15,23 +15,24 @@ services:
       - ./pages:/home/dashboard/frontend/pages
     networks:
         - emqx-bridge
-  backend-api:
-    container_name: backend-api
-    image: hummingbot/backend-api:dydx
+  hummingbot-api:
+    container_name: hummingbot-api
+    image: hummingbot/hummingbot-api:dydx
     ports:
       - "8000:8000"
     volumes:
-      - ./bots:/backend-api/bots
+      - ./bots:/hummingbot-api/bots
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
       - .env
     environment:
+      # Override specific values for Docker networking
       - BROKER_HOST=emqx
-      - BROKER_PORT=1883
-      - USERNAME=admin
-      - PASSWORD=admin
+      - DATABASE_URL=postgresql+asyncpg://hbot:hummingbot-api@postgres:5432/hummingbot_api
     networks:
       - emqx-bridge
+    depends_on:
+      - postgres
   emqx:
     container_name: hummingbot-broker
     image: emqx:5
@@ -68,7 +69,32 @@ networks:
   emqx-bridge:
     driver: bridge
 
+  postgres:
+    container_name: hummingbot-postgres
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=hummingbot_api
+      - POSTGRES_USER=hbot
+      - POSTGRES_PASSWORD=hummingbot-api
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - emqx-bridge
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hbot -d hummingbot_api"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  emqx-bridge:
+    driver: bridge
+
 volumes:
   emqx-data: { }
   emqx-log: { }
   emqx-etc: { }
+  postgres-data: { }
