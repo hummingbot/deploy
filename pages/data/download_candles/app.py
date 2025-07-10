@@ -27,9 +27,12 @@ with c4:
 if get_data_button:
     start_datetime = datetime.combine(start_date, time.min)
     end_datetime = datetime.combine(end_date, time.max)
+    if end_datetime < start_datetime:
+        st.error("End Date should be greater than Start Date.")
+        st.stop()
 
-    candles = backend_api_client.get_historical_candles(
-        connector=connector,
+    candles = backend_api_client.market_data.get_historical_candles(
+        connector_name=connector,
         trading_pair=trading_pair,
         interval=interval,
         start_time=int(start_datetime.timestamp()),
@@ -45,9 +48,7 @@ if get_data_button:
         open=candles_df['open'],
         high=candles_df['high'],
         low=candles_df['low'],
-        close=candles_df['close'],
-        increasing_line_color='#2ECC71',
-        decreasing_line_color='#E74C3C'
+        close=candles_df['close']
     )])
     fig.update_layout(
         height=1000,
