@@ -1,11 +1,22 @@
 # hummingbot-deploy
 
-Welcome to the Hummingbot Deploy project. This guide will walk you through the steps to deploy multiple trading bots using a centralized dashboard and a service backend.
+Welcome to the Hummingbot Deploy project. This guide will walk you through the steps to deploy multiple trading bots using a centralized dashboard powered by the Hummingbot API and comprehensive backend services.
 
 ## Prerequisites
 
 - Docker must be installed on your machine. If you do not have Docker installed, you can download and install it from [Docker's official site](https://www.docker.com/products/docker-desktop).
 - If you are on Windows, you'll need to setup WSL2 and a Linux terminal like Ubuntu. Make sure to run the commands below in a Linux terminal and not in the Windows command prompt or Powershell.
+
+## Architecture
+
+This deployment includes:
+
+- **Dashboard** (port 8501): Streamlit-based web UI for bot management and monitoring
+- **Hummingbot API** (port 8000): FastAPI backend service for bot operations and data management
+- **PostgreSQL Database** (port 5432): Persistent storage for bot configurations and performance data
+- **EMQX Broker** (port 1883): MQTT broker for real-time bot communication and telemetry
+
+All services are orchestrated using Docker Compose for seamless deployment and management.
 
 ## Installation
 
@@ -22,8 +33,10 @@ Welcome to the Hummingbot Deploy project. This guide will walk you through the s
    - ```bash
      bash setup.sh
      ```
-2. **Access the dashboard:**
-   - Open your web browser and go to `localhost:8501`. Replace `localhost` with the IP of your server if using a cloud server.
+2. **Access the services:**
+   - **Dashboard**: Open your web browser and go to `localhost:8501`. Replace `localhost` with the IP of your server if using a cloud server.
+   - **API Documentation**: Access the Hummingbot API docs at `localhost:8000/docs`
+   - **EMQX Dashboard**: Monitor MQTT broker at `localhost:18083` (admin/public)
 
 3. **API Keys and Credentials:**
    - Go to the credentials page
@@ -43,8 +56,10 @@ Welcome to the Hummingbot Deploy project. This guide will walk you through the s
      - If it's running, you can check the performance of it in the graph, refresh to see the latest data.
      - If it's stopped, probably the bot had an error, you can check the logs in the container to understand what happened.
 
-7. **[Optional] Check the Backend API**
-   -  Open your web browser and go to `localhost:8000/docs`.
+7. **[Optional] Monitor Services**
+   - **Hummingbot API**: Access full API documentation at `localhost:8000/docs`
+   - **Database**: PostgreSQL running on `localhost:5432` (hbot/hummingbot-api)
+   - **MQTT Broker**: EMQX dashboard at `localhost:18083` for real-time bot communication monitoring
 
 ## Authentication
 
@@ -88,7 +103,7 @@ The dashboard uses `admin` and `abc` as the default username and password respec
       - "8501:8501"
     environment:
         - AUTH_SYSTEM_ENABLED=True
-        - BACKEND_API_HOST=backend-api
+        - BACKEND_API_HOST=hummingbot-api
         - BACKEND_API_PORT=8000
   ```
 - Change the value of `AUTH_SYSTEM_ENABLED` from `False` to `True`.
