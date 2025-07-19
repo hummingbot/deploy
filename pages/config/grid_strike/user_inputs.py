@@ -68,9 +68,9 @@ def user_inputs():
                     end_price = max(current_price, max_price)
                     limit_price = start_price * 0.95
                 else:
-                    start_price = max(max_price, current_price)
-                    end_price = min(current_price, min_price)
-                    limit_price = start_price * 1.05
+                    start_price = min(current_price, min_price)
+                    end_price = max(max_price, current_price)
+                    limit_price = end_price * 1.05
                 # Price configuration with meaningful defaults
                 start_price = st.number_input(
                     "Start Price",
