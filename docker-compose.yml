@@ -94,3 +94,6 @@ volumes:
   emqx-log: { }
   emqx-etc: { }
   postgres-data: { }
+git clone https://github.com/hummingbot/deploy.git
+cd deploy
+bash setup.sh
