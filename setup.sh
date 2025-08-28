@@ -120,8 +120,8 @@ if [ -f "docker-compose.yml" ]; then
     cp docker-compose.yml docker-compose.yml.backup
     
     # Update the credentials using sed
-    sed -i "s/BACKEND_API_USERNAME=.*/BACKEND_API_USERNAME=$USERNAME/" docker-compose.yml
-    sed -i "s/BACKEND_API_PASSWORD=.*/BACKEND_API_PASSWORD=$PASSWORD/" docker-compose.yml
+    sed -i "" "s/BACKEND_API_USERNAME=.*/BACKEND_API_USERNAME=$USERNAME/" docker-compose.yml
+    sed -i "" "s/BACKEND_API_PASSWORD=.*/BACKEND_API_PASSWORD=$PASSWORD/" docker-compose.yml
     
     echo -e "${GREEN}✅ docker-compose.yml updated successfully!${NC}"
     echo -e "${BLUE}📋 Updated credentials:${NC} Username: $USERNAME, Password: $PASSWORD"
