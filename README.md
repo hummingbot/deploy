@@ -103,7 +103,7 @@ The dashboard uses `admin` and `abc` as the default username and password respec
       - "8501:8501"
     environment:
         - AUTH_SYSTEM_ENABLED=True
-        - BACKEND_API_HOST=hummingbot-api
+        - BACKEND_API_HOST=hummingbot_api
         - BACKEND_API_PORT=8000
   ```
 - Change the value of `AUTH_SYSTEM_ENABLED` from `False` to `True`.

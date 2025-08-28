@@ -6,7 +6,7 @@ services:
       - "8501:8501"
     environment:
         - AUTH_SYSTEM_ENABLED=False
-        - BACKEND_API_HOST=hummingbot-api
+        - BACKEND_API_HOST=hummingbot_api
         - BACKEND_API_PORT=8000
         - BACKEND_API_USERNAME=admin
         - BACKEND_API_PASSWORD=admin
@@ -15,7 +15,7 @@ services:
       - ./pages:/home/dashboard/frontend/pages
     networks:
         - emqx-bridge
-  hummingbot-api:
+  hummingbot_api:
     container_name: hummingbot-api
     image: hummingbot/hummingbot-api:dydx
     ports:
