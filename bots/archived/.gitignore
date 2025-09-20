@@ -1,0 +1,3 @@
+# Ignore archived bot files created at runtime
+*
+!.gitignore
