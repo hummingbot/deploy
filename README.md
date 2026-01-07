@@ -1,138 +1,163 @@
-# hummingbot-deploy
+# Condor Deploy
 
-Welcome to the Hummingbot Deploy project. This guide will walk you through the steps to deploy multiple trading bots using a centralized dashboard powered by the Hummingbot API and comprehensive backend services.
+Welcome to the Condor Deploy project. This guide will walk you through deploying the Condor Telegram bot along with optional trading infrastructure including the Hummingbot API and Dashboard.
 
 ## Prerequisites
 
-- Docker must be installed on your machine. If you do not have Docker installed, you can download and install it from [Docker's official site](https://www.docker.com/products/docker-desktop).
-- If you are on Windows, you'll need to setup WSL2 and a Linux terminal like Ubuntu. Make sure to run the commands below in a Linux terminal and not in the Windows command prompt or Powershell.
+- **Linux/macOS** with a terminal (Windows users need WSL2 with Ubuntu)
+- **Docker** and **Docker Compose** (the installer will attempt to install these if missing)
 
 ## Architecture
 
 This deployment includes:
 
-- **Dashboard** (port 8501): Streamlit-based web UI for bot management and monitoring
+- **Condor Bot** (required): Telegram bot for managing and monitoring Hummingbot trading bots
 - **Hummingbot API** (port 8000): FastAPI backend service for bot operations and data management
-- **PostgreSQL Database** (port 5432): Persistent storage for bot configurations and performance data
+- **PostgreSQL Database** (port 5432): Persistent storage for bot configurations and performance data  
 - **EMQX Broker** (port 1883): MQTT broker for real-time bot communication and telemetry
+- **Dashboard** (port 8501, optional): Streamlit-based web UI for bot management and monitoring
 
 All services are orchestrated using Docker Compose for seamless deployment and management.
 
-## Installation
+## Quick Install
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/hummingbot/deploy.git
-   cd deploy
-   ```
+Run this single command to download and launch the installer:
 
-## Running the Application
+```bash
+curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/main/setup.sh | bash
+```
 
-1. **Start and configure the Application**
-   - Run the following command to download and start the app.
-   - ```bash
-     bash setup.sh
-     ```
-2. **Access the services:**
-   - **Dashboard**: Open your web browser and go to `localhost:8501`. Replace `localhost` with the IP of your server if using a cloud server.
-   - **API Documentation**: Access the Hummingbot API docs at `localhost:8000/docs`
-   - **EMQX Dashboard**: Monitor MQTT broker at `localhost:18083` (admin/public)
+### Installation Options
 
-3. **API Keys and Credentials:**
-   - Go to the credentials page
-   - You add credentials to the master account by picking the exchange and adding the API key and secret. This will encrypt the keys and store them in the master account folder.
-   - If you are managing multiple accounts you can create a new one and start adding new credentials there.
+```bash
+# Standard installation (Condor + API)
+curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/main/setup.sh | bash
 
-4. **Create a config for PMM Simple**
-   - Go to the tab PMM Simple and create a new configuration. Soon will be released a video explaining how the strategy works.
+# Include Dashboard
+curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/main/setup.sh | bash -s -- --with-dashboard
+```
 
-5. **Deploy the configuration**
-   - Go to the Deploy tab, select a name for your bot, the image hummingbot/hummingbot:latest and the configuration you just created.
-   - Press the button to create a new instance.
+### Command Line Options
 
-6. **Check the status of the bot**
-   - Go to the Instances tab and check the status of the bot.
-     - If it's not available is because the bot is starting, wait a few seconds and refresh the page.
-     - If it's running, you can check the performance of it in the graph, refresh to see the latest data.
-     - If it's stopped, probably the bot had an error, you can check the logs in the container to understand what happened.
+| Option | Description |
+|--------|-------------|
+| `--with-dashboard` | Include the Dashboard service in the installation |
+| `-h, --help` | Show help message |
 
-7. **[Optional] Monitor Services**
-   - **Hummingbot API**: Access full API documentation at `localhost:8000/docs`
-   - **Database**: PostgreSQL running on `localhost:5432` (hbot/hummingbot-api)
-   - **MQTT Broker**: EMQX dashboard at `localhost:18083` for real-time bot communication monitoring
+## What the Installer Does
 
-## Authentication
+The setup script will:
 
-Authentication is disabled by default. To enable Dashboard Authentication please follow the steps below: 
+1. Check and install dependencies (git, docker, docker-compose) if needed
+2. Prompt you for configuration:
+   - **Telegram Bot Token** - Get this from [@BotFather](https://t.me/BotFather)
+   - **Admin User ID** - Get this from [@userinfobot](https://t.me/userinfobot)
+   - **OpenAI API Key** (optional) - For AI-powered features
+   - **API/Dashboard credentials** - Username and password for the services
+3. Clone the required repositories
+4. Generate configuration files (`.env`, `docker-compose.yml`)
+5. Start all services with Docker Compose
 
-**Set Credentials (Optional):**
+## Access Your Services
 
-The dashboard uses `admin` and `abc` as the default username and password respectively. It's strongly recommended to change these credentials for enhanced security.:
+After installation, access your services at:
 
-- Navigate to the `deploy` folder and open the `credentials.yml` file.
-- Add or modify the current username / password and save the changes afterward
-  
-  ```
-  credentials:
-    usernames:
-      admin:
-        email: admin@gmail.com
-        name: John Doe
-        logged_in: False
-        password: abc
-  cookie:
-    expiry_days: 0
-    key: some_signature_key # Must be string
-    name: some_cookie_name
-  pre-authorized:
-    emails:
-    - admin@admin.com
-  ```  
-### Enable Authentication
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Condor Bot | Your Telegram Bot | Send `/start` to your bot |
+| Hummingbot API | http://localhost:8000/docs | Username/password from setup |
+| Dashboard | http://localhost:8501 | Username/password from setup |
+| EMQX Broker | http://localhost:18083 | admin / public |
 
-- Ensure the dashboard container is not running.
-- Open the `docker-compose.yml` file within the `deploy` folder using a text editor.
-- Locate the environment variable `AUTH_SYSTEM_ENABLED` under the dashboard service configuration.
-  
-  ```
-  services:
-  dashboard:
-    container_name: dashboard
-    image: hummingbot/dashboard:latest
-    ports:
-      - "8501:8501"
-    environment:
-        - AUTH_SYSTEM_ENABLED=True
-        - BACKEND_API_HOST=hummingbot-api
-        - BACKEND_API_PORT=8000
-  ```
-- Change the value of `AUTH_SYSTEM_ENABLED` from `False` to `True`.
-- Save the changes to the `docker-compose.yml` file.
-- Relaunch Dashboard by running `bash setup.sh`
-  
-### Known Issues
-- Refreshing the browser window may log you out and display the login screen again. This is a known issue that might be addressed in future updates.
+## Managing Your Installation
 
+All services are installed in the `hbot-instance` directory. Use these commands to manage them:
 
-## Dashboard Functionalities
+```bash
+cd hbot-instance
 
-- **Config Generator:**
-  - Create and select configurations for different v2 strategies.
-  - Backtest and deploy the selected configurations.
+# View running services
+docker compose ps
 
-- **Bot Management:**
-  - Visualize bot performance in real-time.
-  - Stop and archive running bots.
+# View logs
+docker compose logs -f
 
-## Tutorial
+# Stop all services
+docker compose down
 
-To get started with deploying your first bot, follow these step-by-step instructions:
+# Start services
+docker compose up -d
 
-1. **Prepare your bot configurations:**
-   - Select a controller and backtest your controller configs.
+# Upgrade to latest versions
+docker compose pull && docker compose up -d
+```
 
-2. **Deploy a bot:**
-   - Use the dashboard UI to select and deploy your configurations.
+## Configuration Files
 
-3. **Monitor and Manage:**
-   - Track bot performance and make adjustments as needed through the dashboard.
+After installation, you'll find these files in `hbot-instance/`:
+
+| File | Purpose |
+|------|---------|
+| `.env` | Environment variables for all services |
+| `docker-compose.yml` | Service definitions and configuration |
+| `credentials.yml` | Dashboard authentication (if installed) |
+| `condor/` | Condor bot data and routines |
+| `hummingbot-api/` | API service data and bot configurations |
+
+## Getting Started with Trading
+
+1. **Add API Credentials**
+   - Open the Dashboard or use the Condor bot
+   - Navigate to credentials/config section
+   - Add your exchange API keys (they will be encrypted)
+
+2. **Create a Trading Configuration**
+   - Use the Dashboard's Config Generator, or
+   - Use Condor bot's `/config` command
+
+3. **Deploy a Bot**
+   - Select your configuration
+   - Choose the Hummingbot image version
+   - Start the bot instance
+
+4. **Monitor Performance**
+   - Check bot status via Dashboard or Condor
+   - View real-time performance metrics
+   - Adjust configurations as needed
+
+## Upgrading
+
+To upgrade your installation to the latest versions:
+
+```bash
+cd hbot-instance
+docker compose pull
+docker compose up -d
+```
+
+Or simply re-run the setup script from the original location - it will detect the existing installation and perform an upgrade.
+
+## Troubleshooting
+
+### Services not starting
+```bash
+# Check logs for errors
+docker compose logs -f
+
+# Restart all services
+docker compose down && docker compose up -d
+```
+
+### Port conflicts
+If you have other services using the default ports (8000, 8501, 5432, 1883), edit the `docker-compose.yml` to use different host ports.
+
+### Condor bot not responding
+- Verify your Telegram token is correct in `.env`
+- Check `ADMIN_USER_ID` matches your Telegram user ID
+- View Condor logs: `docker compose logs condor`
+
+## Support
+
+- **Documentation**: [Hummingbot Docs](https://docs.hummingbot.org)
+- **Discord**: [Hummingbot Discord](https://discord.hummingbot.io)
+- **GitHub Issues**: [Report bugs](https://github.com/hummingbot/deploy/issues)
