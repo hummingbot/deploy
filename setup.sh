@@ -123,7 +123,7 @@ install_dependencies() {
 
             if ! (command_exists docker-compose || docker compose version >/dev/null 2>&1); then
                 msg_info "Installing Docker Compose..."
-                LATEST_COMPOSE=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+                LATEST_COMPOSE=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
                 sudo curl -L "https://github.com/docker/compose/releases/download/$LATEST_COMPOSE/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
                 sudo chmod +x /usr/local/bin/docker-compose
             fi
@@ -198,6 +198,13 @@ run_installation() {
         git clone --depth 1 "$DASHBOARD_REPO"
     fi
 
+    # --- Create Required Directories ---
+    msg_info "Creating required directories..."
+    if [ -d "condor" ]; then
+        mkdir -p condor/data
+        msg_ok "Created condor/data directory"
+    fi
+
     # --- Configuration Prompts ---
     echo ""
     echo -e "${BLUE}Universal Configuration:${NC}"
@@ -247,13 +254,20 @@ DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-admin}
 # --- Internal Service Configuration ---
 # These are used by services to communicate with each other inside the Docker network.
 BROKER_HOST=emqx
+BROKER_PORT=1883
+BROKER_USERNAME=admin
+BROKER_PASSWORD=password
 DATABASE_URL=postgresql+asyncpg://hbot:hummingbot-api@postgres:5432/hummingbot_api
 BOTS_PATH=/hummingbot-api/bots
+
+# --- Gateway Configuration ---
+GATEWAY_URL=http://host.docker.internal:15888
+GATEWAY_PASSPHRASE=admin
 
 # --- Default App Settings ---
 DEBUG_MODE=false
 LOGFIRE_ENVIRONMENT=prod
-BANNED_TOKENS='["NAV","ARS","ETHW","ETHF","NEWT"]'
+BANNED_TOKENS=["NAV","ARS","ETHW","ETHF","NEWT"]
 EOF
     msg_ok ".env file created."
 
@@ -312,11 +326,18 @@ EOF
       - "8084:8084"
       - "8883:8883"
       - "18083:18083"
+      - "61613:61613"
     volumes:
-      - emqx_data:/opt/emqx/data
-      - emqx_log:/opt/emqx/log
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+      - emqx-etc:/opt/emqx/etc
     networks:
-      - hummingbot_net
+      - hummingbot-net
+    healthcheck:
+      test: [ "CMD", "/opt/emqx/bin/emqx_ctl", "status" ]
+      interval: 5s
+      timeout: 25s
+      retries: 5
 
   postgres:
     image: postgres:16
@@ -328,12 +349,17 @@ EOF
       - POSTGRES_PASSWORD=hummingbot-api
       - POSTGRES_INITDB_ARGS=--encoding=UTF8
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - postgres-data:/var/lib/postgresql/data
+      - ./hummingbot-api/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
       - "5432:5432"
     networks:
-      - hummingbot_net
+      - hummingbot-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hbot -d hummingbot_api"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 EOF
     fi
 
@@ -361,10 +387,12 @@ EOF
       # On Linux, this maps to the docker bridge gateway IP
       - "host.docker.internal:host-gateway"
     depends_on:
-      - postgres
-      - emqx
+      postgres:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
     networks:
-      - hummingbot_net
+      - hummingbot-net
 EOF
     fi
 
@@ -387,19 +415,20 @@ EOF
     depends_on:
       - hummingbot-api
     networks:
-      - hummingbot_net
+      - hummingbot-net
 EOF
     fi
 
     cat >> docker-compose.yml << EOF
 
 volumes:
-  emqx_data:
-  emqx_log:
-  postgres_data:
+  emqx-data: { }
+  emqx-log: { }
+  emqx-etc: { }
+  postgres-data: { }
 
 networks:
-  hummingbot_net:
+  hummingbot-net:
     driver: bridge
 EOF
     msg_ok "docker-compose.yml generated."
