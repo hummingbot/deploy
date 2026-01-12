@@ -4,10 +4,6 @@
 #
 # This script sets up Hummingbot instances with optional Hummingbot API integration.
 # Each repository manages its own docker-compose and setup via Makefile.
-#
-# Usage:
-#   ./deploy_installer.sh [OPTIONS]
-#   ./deploy_installer.sh --upgrade (to upgrade existing installation)
 
 set -e
 
