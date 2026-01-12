@@ -2,20 +2,20 @@
 #
 # Hummingbot Deploy Instance Installer
 #
-# This script should be run from within the cloned 'deploy' repository.
-# It will create a self-contained instance directory with all required components.
+# This script sets up Hummingbot instances with optional Hummingbot API integration.
+# Each repository manages its own docker-compose and setup via Makefile.
 #
+# Usage:
+#   ./deploy_installer.sh [OPTIONS]
+#   ./deploy_installer.sh --upgrade (to upgrade existing installation)
 
 set -e
 
 # --- Configuration ---
-INSTANCE_DIR="hbot-instance"
 CONDOR_REPO="https://github.com/hummingbot/condor.git"
 API_REPO="https://github.com/hummingbot/hummingbot-api.git"
-DASHBOARD_REPO="https://github.com/hummingbot/dashboard.git"
-
-# --- Default Flags ---
-INSTALL_DASHBOARD="n"
+CONDOR_DIR="condor"
+API_DIR="hummingbot-api"
 
 # --- Color Codes ---
 RED='\033[0;31m'
@@ -30,44 +30,145 @@ NC='\033[0m'
 msg_info() {
     echo -e "${CYAN}[INFO] $1${NC}"
 }
+
 msg_ok() {
     echo -e "${GREEN}[OK] $1${NC}"
 }
+
 msg_warn() {
     echo -e "${YELLOW}[WARN] $1${NC}"
 }
+
 msg_error() {
     echo -e "${RED}[ERROR] $1${NC}" >&2
 }
+
 prompt() {
     echo -en "${PURPLE}$1${NC}" > /dev/tty
 }
+
 prompt_visible() {
     prompt "$1"
     read -r val < /dev/tty
     echo "$val"
 }
+
 prompt_default() {
     prompt "$1 [$2]: "
     read -r val < /dev/tty
     echo "${val:-$2}"
 }
+
+prompt_yesno() {
+    while true; do
+        prompt "$1 (y/n): "
+        read -r val < /dev/tty
+        case "$val" in
+            [Yy]) echo "y"; return ;;
+            [Nn]) echo "n"; return ;;
+            *) msg_warn "Please answer 'y' or 'n'" ;;
+        esac
+    done
+}
+
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+check_conda() {
+    if command_exists conda; then
+        return 0
+    fi
+    return 1
+}
+
+install_conda() {
+    msg_info "Installing Anaconda..."
+    
+    CONDA_INSTALL_DIR="$HOME/anaconda3"
+    
+    # Download appropriate installer for OS and architecture
+    case "$OS" in
+        linux)
+            case "$ARCH" in
+                amd64|x86_64)
+                    CONDA_INSTALLER="Anaconda3-2024.02-1-Linux-x86_64.sh"
+                    ;;
+                arm64|aarch64)
+                    CONDA_INSTALLER="Anaconda3-2024.02-1-Linux-aarch64.sh"
+                    ;;
+                *)
+                    msg_error "Unsupported architecture for Linux: $ARCH"
+                    return 1
+                    ;;
+            esac
+            ;;
+        darwin)
+            case "$ARCH" in
+                amd64|x86_64)
+                    CONDA_INSTALLER="Anaconda3-2024.02-1-MacOSX-x86_64.sh"
+                    ;;
+                arm64|aarch64)
+                    CONDA_INSTALLER="Anaconda3-2024.02-1-MacOSX-arm64.sh"
+                    ;;
+                *)
+                    msg_error "Unsupported architecture for macOS: $ARCH"
+                    return 1
+                    ;;
+            esac
+            ;;
+        *)
+            msg_error "Unsupported OS for Anaconda installation: $OS"
+            return 1
+            ;;
+    esac
+    
+    CONDA_URL="https://repo.anaconda.com/archive/$CONDA_INSTALLER"
+    CONDA_TEMP="/tmp/$CONDA_INSTALLER"
+    
+    msg_info "Downloading Anaconda from: $CONDA_URL"
+    if ! curl -fL "$CONDA_URL" -o "$CONDA_TEMP"; then
+        msg_error "Failed to download Anaconda installer"
+        return 1
+    fi
+    
+    msg_info "Running Anaconda installer..."
+    if ! bash "$CONDA_TEMP" -b -p "$CONDA_INSTALL_DIR"; then
+        msg_error "Anaconda installation failed"
+        rm -f "$CONDA_TEMP"
+        return 1
+    fi
+    
+    rm -f "$CONDA_TEMP"
+    
+    # Initialize conda
+    msg_info "Initializing conda..."
+    "$CONDA_INSTALL_DIR/bin/conda" init bash
+    
+    msg_ok "Anaconda installed successfully at: $CONDA_INSTALL_DIR"
+    msg_info "Restarting shell to activate conda and continue installation..."
+    
+    # Get the directory where the script is located
+    SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    
+    # Restart bash and re-invoke this script with --upgrade flag to continue
+    exec bash -c "source $HOME/.bashrc && bash '$SCRIPT_PATH' --upgrade"
+}
+
 # --- Parse Command Line Arguments ---
+UPGRADE_MODE="n"
+
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --with-dashboard)
-            INSTALL_DASHBOARD="y"
+        --upgrade)
+            UPGRADE_MODE="y"
             shift
             ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --with-dashboard    Include Dashboard service in the installation"
+            echo "  --upgrade           Upgrade existing installation"
             echo "  -h, --help          Show this help message"
             exit 0
             ;;
@@ -94,38 +195,68 @@ detect_os_arch() {
 
 install_dependencies() {
     msg_info "Checking for dependencies..."
-    if command_exists git && command_exists docker && (command_exists docker-compose || docker compose version >/dev/null 2>&1); then
-        msg_ok "All dependencies (git, docker, docker-compose) are already installed."
-        return
+    
+    MISSING_DEPS=()
+    
+    if ! command_exists git; then
+        MISSING_DEPS+=("git")
+    fi
+    if ! command_exists docker; then
+        MISSING_DEPS+=("docker")
     fi
     
-    msg_warn "Some dependencies are missing. You may need to run this with 'sudo'."
+    # Check for docker-compose (either standalone or as docker compose plugin)
+    if ! (command_exists docker-compose || (command_exists docker && docker compose version >/dev/null 2>&1)); then
+        MISSING_DEPS+=("docker-compose")
+    fi
+    
+    if ! command_exists make; then
+        MISSING_DEPS+=("make")
+    fi
+
+    if [ ${#MISSING_DEPS[@]} -eq 0 ]; then
+        msg_ok "All dependencies (git, docker, docker-compose, make) are already installed."
+        return
+    fi
+
+    msg_warn "Missing dependencies: ${MISSING_DEPS[*]}"
     msg_info "Attempting to install missing dependencies..."
 
     case "$OS" in
         linux)
             if ! command_exists apt-get; then
                 msg_error "This script currently only supports Debian/Ubuntu-based Linux distributions for automatic dependency installation."
+                msg_info "Please install missing dependencies manually: ${MISSING_DEPS[*]}"
                 exit 1
             fi
             export DEBIAN_FRONTEND=noninteractive
             sudo apt-get update
-            sudo apt-get install -y git curl
+            sudo apt-get install -y git curl build-essential
 
             if ! command_exists docker; then
                 msg_info "Installing Docker..."
                 curl -fsSL https://get.docker.com -o get-docker.sh
                 sudo sh get-docker.sh
-                rm get-docker.sh
+                rm -f get-docker.sh
+                sudo usermod -aG docker "$USER"
+                msg_warn "Docker installed. You may need to log out and back in for permissions to take effect."
             fi
-            sudo systemctl start docker
-            sudo systemctl enable docker
+            
+            sudo systemctl start docker 2>/dev/null || true
+            sudo systemctl enable docker 2>/dev/null || true
 
-            if ! (command_exists docker-compose || docker compose version >/dev/null 2>&1); then
+            # Check if docker-compose is needed
+            if ! (command_exists docker-compose || (command_exists docker && docker compose version >/dev/null 2>&1)); then
                 msg_info "Installing Docker Compose..."
                 LATEST_COMPOSE=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-                sudo curl -L "https://github.com/docker/compose/releases/download/$LATEST_COMPOSE/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                COMPOSE_URL="https://github.com/docker/compose/releases/download/$LATEST_COMPOSE/docker-compose-$(uname -s)-$(uname -m)"
+                
+                if ! sudo curl -L "$COMPOSE_URL" -o /usr/local/bin/docker-compose; then
+                    msg_error "Failed to download Docker Compose from $COMPOSE_URL"
+                    exit 1
+                fi
                 sudo chmod +x /usr/local/bin/docker-compose
+                msg_ok "Docker Compose installed."
             fi
             ;;
         darwin)
@@ -133,16 +264,27 @@ install_dependencies() {
                 msg_error "Homebrew is not installed. Please install it first by visiting https://brew.sh/"
                 exit 1
             fi
-            brew install git
+            
+            if ! command_exists git; then
+                msg_info "Installing git..."
+                brew install git
+            fi
+            
+            if ! command_exists make; then
+                msg_info "Installing make..."
+                brew install make
+            fi
+            
             if ! command_exists docker; then
                 msg_info "Installing Docker Desktop for Mac..."
                 brew install --cask docker
-                msg_warn "Please open Docker Desktop to start the Docker daemon, then re-run this script."
+                msg_warn "Docker Desktop installed. Please open Docker Desktop to start the Docker daemon, then re-run this script."
                 exit 0
             fi
             ;;
         *)
             msg_error "Unsupported operating system: $OS"
+            msg_info "Please install dependencies manually: ${MISSING_DEPS[*]}"
             exit 1
             ;;
     esac
@@ -150,312 +292,161 @@ install_dependencies() {
 }
 
 run_upgrade() {
-    msg_info "Existing installation found in './$INSTANCE_DIR'. Starting upgrade process..."
-    cd "$INSTANCE_DIR"
+    msg_info "Existing installation detected. Starting upgrade/installation process..."
     
-    for repo in condor hummingbot-api dashboard; do
-        if [ -d "$repo" ]; then
-            msg_info "Pulling latest changes for $repo..."
-            (cd "$repo" && git pull)
+    # Upgrade Condor if it exists
+    if [ -d "$CONDOR_DIR" ]; then
+        msg_info "Upgrading Condor..."
+        (cd "$CONDOR_DIR" && git pull)
+        msg_ok "Condor repository updated."
+    else
+        msg_warn "Condor directory not found, skipping Condor upgrade."
+    fi
+
+    # Check if API needs to be installed (Condor exists but API doesn't)
+    if [ -d "$CONDOR_DIR" ] && [ ! -d "$API_DIR" ]; then
+        echo ""
+        msg_info "Hummingbot API is not installed yet."
+        INSTALL_API=$(prompt_yesno "Do you want to install Hummingbot API now?")
+        
+        if [ "$INSTALL_API" = "y" ]; then
+            echo ""
+            echo -e "${BLUE}Installing Hummingbot API:${NC}"
+            msg_info "Cloning Hummingbot API repository..."
+            git clone --depth 1 "$API_REPO" "$API_DIR"
+            
+            msg_info "Setting up Hummingbot API (running: make setup)..."
+            (cd "$API_DIR" && make setup)
+            
+            msg_info "Deploying Hummingbot API (running: make deploy)..."
+            (cd "$API_DIR" && make deploy)
+            msg_ok "Hummingbot API installation complete!"
         fi
-    done
+    # Upgrade Hummingbot API if it already exists
+    elif [ -d "$API_DIR" ]; then
+        msg_info "Upgrading Hummingbot API..."
+        (cd "$API_DIR" && git pull)
+        msg_ok "Hummingbot API repository updated."
+    fi
 
-    msg_info "Pulling latest Docker images..."
-    docker compose pull
+    # Pull latest images for condor and hummingbot-api only
+    msg_info "Pulling latest Docker images (condor and hummingbot-api only)..."
+    
+    if [ -f "$CONDOR_DIR/docker-compose.yml" ]; then
+        msg_info "Updating Condor container..."
+        (cd "$CONDOR_DIR" && docker compose pull || true)
+    fi
 
-    msg_info "Restarting services with updated images..."
-    docker compose up -d --remove-orphans
+    if [ -f "$API_DIR/docker-compose.yml" ]; then
+        msg_info "Updating Hummingbot API container..."
+        (cd "$API_DIR" && docker compose pull || true)
+    fi
 
-    msg_ok "Upgrade complete!"
+    # Restart services
+    msg_info "Restarting services..."
+    if [ -f "$CONDOR_DIR/docker-compose.yml" ]; then
+        (cd "$CONDOR_DIR" && docker compose up -d --remove-orphans || true)
+    fi
+    if [ -f "$API_DIR/docker-compose.yml" ]; then
+        (cd "$API_DIR" && docker compose up -d --remove-orphans || true)
+    fi
+
+    msg_ok "Installation/upgrade complete!"
+    
+    echo ""
+    echo -e "${BLUE}Running services:${NC}"
+    msg_info "Check container status with: cd $CONDOR_DIR && docker compose ps"
+    if [ -d "$API_DIR" ]; then
+        msg_info "Or: cd $API_DIR && docker compose ps"
+    fi
 }
 
 run_installation() {
     msg_info "Starting new installation..."
-    mkdir -p "$INSTANCE_DIR"
-    cd "$INSTANCE_DIR"
-    msg_ok "Created instance directory: $(pwd)"
+    
+    SCRIPT_DIR="$(pwd)"
+    msg_ok "Installation directory: $SCRIPT_DIR"
 
-    # --- User Prompts ---
+    # --- Clone and Setup Condor ---
     echo ""
-    echo -e "${BLUE}Component Selection:${NC}"
-    msg_info "Condor Bot will be installed by default."
-    INSTALL_API=$(prompt_default "Install Hummingbot API service? (y/n)" "y")
-    if [ "$INSTALL_DASHBOARD" = "y" ]; then
-        msg_info "Dashboard service will be installed (--with-dashboard flag detected)."
-    fi
-
-    # --- Clone Repositories ---
+    echo -e "${BLUE}Installing Condor Bot:${NC}"
+    msg_info "Cloning Condor repository..."
+    git clone --depth 1 "$CONDOR_REPO" "$CONDOR_DIR"
+    
+    msg_info "Setting up Condor (running: make setup)..."
+    (cd "$CONDOR_DIR" && make setup)
+    
+    msg_info "Deploying Condor (running: make deploy)..."
+    (cd "$CONDOR_DIR" && make deploy)
+    msg_ok "Condor installation complete!"
+    
+    # --- Prompt for API Installation ---
     echo ""
-    msg_info "Cloning repositories..."
-    msg_info "Cloning Condor..."
-    git clone --depth 1 "$CONDOR_REPO"
-    if [ "$INSTALL_API" = "y" ]; then
-        msg_info "Cloning Hummingbot API..."
-        git clone --depth 1 "$API_REPO"
-    fi
-    if [ "$INSTALL_DASHBOARD" = "y" ]; then
-        msg_info "Cloning Dashboard..."
-        git clone --depth 1 "$DASHBOARD_REPO"
-    fi
-
-    # --- Create Required Directories ---
-    msg_info "Creating required directories..."
-    if [ -d "condor" ]; then
-        mkdir -p condor/data
-        msg_ok "Created condor/data directory"
-    fi
-
-    # --- Configuration Prompts ---
-    echo ""
-    echo -e "${BLUE}Universal Configuration:${NC}"
-    CONFIG_PASSWORD=$(prompt_default "Enter a password to encrypt your credentials" "admin")
-    TELEGRAM_TOKEN=$(prompt_visible "Enter your Telegram Bot Token: ")
-    ADMIN_USER_ID=$(prompt_visible "Enter your Admin Telegram User ID (get it from @userinfobot): ")
-    OPENAI_API_KEY=$(prompt_visible "Enter your OpenAI API Key (optional, press Enter to skip): ")
-
+    INSTALL_API=$(prompt_yesno "Do you also want to install Hummingbot API on this machine?")
+    
     if [ "$INSTALL_API" = "y" ]; then
         echo ""
-        echo -e "${BLUE}Hummingbot API Configuration:${NC}"
-        API_USERNAME=$(prompt_default "Enter a username for Hummingbot API" "admin")
-        API_PASSWORD=$(prompt_default "Enter a password for Hummingbot API" "admin")
+        echo -e "${BLUE}Installing Hummingbot API:${NC}"
+        
+        # --- Check for Conda ---
+        msg_info "Checking for conda..."
+        if ! check_conda; then
+            msg_warn "Conda is not installed. Hummingbot API requires Python via Conda."
+            INSTALL_CONDA=$(prompt_yesno "Would you like to install Anaconda now?")
+            
+            if [ "$INSTALL_CONDA" = "y" ]; then
+                if install_conda; then
+                    msg_ok "Anaconda installed and shell restarted. Continuing with API installation..."
+                    # After exec bash, script will continue from here with conda available
+                else
+                    msg_error "Failed to install Anaconda. Please install it manually from https://www.anaconda.com/download"
+                    exit 1
+                fi
+            else
+                msg_error "Anaconda is required for Hummingbot API installation. Skipping API installation."
+                INSTALL_API="n"
+            fi
+        else
+            msg_ok "Conda is already installed."
+        fi
+        
+        if [ "$INSTALL_API" = "y" ]; then
+            msg_info "Cloning Hummingbot API repository..."
+            git clone --depth 1 "$API_REPO" "$API_DIR"
+            
+            msg_info "Setting up Hummingbot API (running: make setup)..."
+            (cd "$API_DIR" && make setup)
+            
+            msg_info "Deploying Hummingbot API (running: make deploy)..."
+            (cd "$API_DIR" && make deploy)
+            msg_ok "Hummingbot API installation complete!"
+        fi
     fi
-
-    if [ "$INSTALL_DASHBOARD" = "y" ]; then
-        echo ""
-        echo -e "${BLUE}Dashboard Configuration:${NC}"
-        DASHBOARD_USERNAME=$(prompt_default "Enter a username for the Dashboard" "${API_USERNAME:-admin}")
-        DASHBOARD_PASSWORD=$(prompt_default "Enter a password for the Dashboard" "${API_PASSWORD:-admin}")
-    fi
-
-    # --- Create .env file ---
-    msg_info "Creating universal .env file..."
-    cat > .env << EOF
-# Universal .env file for Hummingbot Deploy services
-# Generated on $(date)
-# Values in this file will be used by all services managed by docker-compose.
-
-# --- Security ---
-CONFIG_PASSWORD=${CONFIG_PASSWORD}
-
-# --- Condor Telegram Bot ---
-TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
-ADMIN_USER_ID=${ADMIN_USER_ID}
-AUTHORIZED_USERS=${ADMIN_USER_ID}
-OPENAI_API_KEY=${OPENAI_API_KEY}
-
-# --- Hummingbot API ---
-USERNAME=${API_USERNAME:-admin}
-PASSWORD=${API_PASSWORD:-admin}
-
-# --- Dashboard ---
-DASHBOARD_USERNAME=${DASHBOARD_USERNAME:-admin}
-DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-admin}
-
-# --- Internal Service Configuration ---
-# These are used by services to communicate with each other inside the Docker network.
-BROKER_HOST=emqx
-BROKER_PORT=1883
-BROKER_USERNAME=admin
-BROKER_PASSWORD=password
-DATABASE_URL=postgresql+asyncpg://hbot:hummingbot-api@postgres:5432/hummingbot_api
-BOTS_PATH=/hummingbot-api/bots
-
-# --- Gateway Configuration ---
-GATEWAY_URL=http://host.docker.internal:15888
-GATEWAY_PASSPHRASE=admin
-
-# --- Default App Settings ---
-DEBUG_MODE=false
-LOGFIRE_ENVIRONMENT=prod
-BANNED_TOKENS=["NAV","ARS","ETHW","ETHF","NEWT"]
-EOF
-    msg_ok ".env file created."
-
-    # --- Create credentials.yml for Dashboard ---
-    if [ "$INSTALL_DASHBOARD" = "y" ]; then
-        msg_info "Creating credentials.yml for Dashboard..."
-        cat > credentials.yml << EOF
-credentials:
-  usernames:
-    ${DASHBOARD_USERNAME}:
-      email: user@example.com
-      name: Dashboard User
-      password: ${DASHBOARD_PASSWORD}
-cookie:
-  expiry_days: 30
-  key: "hummingbot-dashboard-key"
-  name: "hummingbot-dashboard-cookie"
-pre-authorized:
-  emails: []
-EOF
-        msg_ok "credentials.yml created."
-    fi
-
-    # --- Create docker-compose.yml ---
-    msg_info "Generating docker-compose.yml..."
-    cat > docker-compose.yml << EOF
-# Hummingbot Deploy - Docker Compose Configuration
-
-services:
-  condor:
-    image: hummingbot/condor:latest
-    container_name: condor
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - ./condor/condor_bot_data.pickle:/app/condor_bot_data.pickle
-      - ./condor/config.yml:/app/config.yml
-      - ./condor/routines:/app/routines
-    network_mode: host
-EOF
-
-    if [ "$INSTALL_API" = "y" ] || [ "$INSTALL_DASHBOARD" = "y" ]; then
-        cat >> docker-compose.yml << EOF
-
-  emqx:
-    image: emqx:5
-    container_name: hummingbot-broker
-    restart: unless-stopped
-    environment:
-      - EMQX_NAME=emqx
-      - EMQX_LOADED_PLUGINS="emqx_recon,emqx_retainer,emqx_management,emqx_dashboard"
-    ports:
-      - "1883:1883"
-      - "8081:8081"
-      - "8083:8083"
-      - "8084:8084"
-      - "8883:8883"
-      - "18083:18083"
-      - "61613:61613"
-    volumes:
-      - emqx-data:/opt/emqx/data
-      - emqx-log:/opt/emqx/log
-      - emqx-etc:/opt/emqx/etc
-    networks:
-      - hummingbot-net
-    healthcheck:
-      test: [ "CMD", "/opt/emqx/bin/emqx_ctl", "status" ]
-      interval: 5s
-      timeout: 25s
-      retries: 5
-
-  postgres:
-    image: postgres:16
-    container_name: hummingbot-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_DB=hummingbot_api
-      - POSTGRES_USER=hbot
-      - POSTGRES_PASSWORD=hummingbot-api
-      - POSTGRES_INITDB_ARGS=--encoding=UTF8
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./hummingbot-api/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
-    ports:
-      - "5432:5432"
-    networks:
-      - hummingbot-net
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hbot -d hummingbot_api"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-EOF
-    fi
-
-    if [ "$INSTALL_API" = "y" ]; then
-        cat >> docker-compose.yml << EOF
-
-  hummingbot-api:
-    image: hummingbot/hummingbot-api:latest
-    container_name: hummingbot-api
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./hummingbot-api/bots:/hummingbot-api/bots
-      - /var/run/docker.sock:/var/run/docker.sock
-    env_file: .env
-    environment:
-      # Override specific values for Docker networking
-      - BROKER_HOST=emqx
-      - DATABASE_URL=postgresql+asyncpg://hbot:hummingbot-api@postgres:5432/hummingbot_api
-      - GATEWAY_URL=http://host.docker.internal:15888
-    extra_hosts:
-      # Map host.docker.internal to host gateway for Linux compatibility
-      # On macOS/Windows, Docker Desktop provides this automatically
-      # On Linux, this maps to the docker bridge gateway IP
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      emqx:
-        condition: service_healthy
-    networks:
-      - hummingbot-net
-EOF
-    fi
-
-    if [ "$INSTALL_DASHBOARD" = "y" ]; then
-        cat >> docker-compose.yml << EOF
-
-  dashboard:
-    image: hummingbot/dashboard:latest
-    container_name: dashboard
-    restart: unless-stopped
-    ports:
-      - "8501:8501"
-    volumes:
-      - ./credentials.yml:/home/dashboard/credentials.yml
-      - ./dashboard/frontend/pages:/home/dashboard/frontend/pages
-    env_file: .env
-    environment:
-      - BACKEND_API_HOST=hummingbot-api
-      - BACKEND_API_PORT=8000
-    depends_on:
-      - hummingbot-api
-    networks:
-      - hummingbot-net
-EOF
-    fi
-
-    cat >> docker-compose.yml << EOF
-
-volumes:
-  emqx-data: { }
-  emqx-log: { }
-  emqx-etc: { }
-  postgres-data: { }
-
-networks:
-  hummingbot-net:
-    driver: bridge
-EOF
-    msg_ok "docker-compose.yml generated."
-
-    # --- Start Services ---
-    msg_info "Pulling required Docker images..."
-    docker compose pull
-
-    msg_info "Starting services..."
-    docker compose up -d
 
     # --- Summary ---
     echo ""
+    echo -e "${GREEN}════════════════════════════════════════${NC}"
     msg_ok "Installation Complete!"
-    echo -e "Your services are running in the ${PURPLE}$(pwd)${NC} directory."
+    echo -e "${GREEN}════════════════════════════════════════${NC}"
     echo ""
-    echo -e "${BLUE}Access your services:${NC}"
-    msg_info "Condor Bot is running and connected to Telegram."
+    echo -e "${BLUE}Installation Summary:${NC}"
+    msg_info "Installation directory: $SCRIPT_DIR"
+    msg_info "Condor is installed and running"
     if [ "$INSTALL_API" = "y" ]; then
-        msg_info "Hummingbot API Docs: http://localhost:8000/docs"
+        msg_info "Hummingbot API is installed and running"
     fi
-    if [ "$INSTALL_DASHBOARD" = "y" ]; then
-        msg_info "Dashboard: http://localhost:8501"
-    fi
+    
     echo ""
-    msg_info "To manage services, navigate to the '$INSTANCE_DIR' directory and use 'docker compose' commands."
-    msg_info "To upgrade in the future, re-run this script from the same directory it was first run."
+    echo -e "${BLUE}Next Steps:${NC}"
+    msg_info "Check Condor status: cd $SCRIPT_DIR/$CONDOR_DIR && docker compose ps"
+    if [ "$INSTALL_API" = "y" ]; then
+        msg_info "Check API status: cd $SCRIPT_DIR/$API_DIR && docker compose ps"
+    fi
+    
+    echo ""
+    echo -e "${BLUE}To upgrade in the future:${NC}"
+    msg_info "Run this script with --upgrade flag from the deployment directory"
+    msg_info "Or re-run this script without flags if both repos exist"
 }
 
 # --- Main Execution ---
@@ -465,7 +456,7 @@ cat << "BANNER"
    ██████╗ ██████╗ ███╗   ██╗██████╗  ██████╗ ██████╗ 
   ██╔════╝██╔═══██╗████╗  ██║██╔══██╗██╔═══██╗██╔══██╗
   ██║     ██║   ██║██╔██╗ ██║██║  ██║██║   ██║██████╔╝
-  ██║     ██║   ██║██║╚██╗██║██║  ██║██║   ██║██╔══██╗
+  ██║     ██║   ██║██║╚██╗██║██║  ██║██║   ██║██╔══██╝
   ╚██████╗╚██████╔╝██║ ╚████║██████╔╝╚██████╔╝██║  ██║
    ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═════╝  ╚═════╝ ╚═╝  ╚═╝
 BANNER
@@ -476,7 +467,8 @@ echo ""
 detect_os_arch
 install_dependencies
 
-if [ -d "$INSTANCE_DIR" ]; then
+# Determine installation or upgrade path
+if [ "$UPGRADE_MODE" = "y" ] || ([ -d "$CONDOR_DIR" ] && [ -d "$API_DIR" ]) || ([ -d "$CONDOR_DIR" ] && [ -f "$CONDOR_DIR/docker-compose.yml" ]); then
     run_upgrade
 else
     run_installation
