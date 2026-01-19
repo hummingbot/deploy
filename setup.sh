@@ -95,6 +95,22 @@ escape_env_value() {
     value="${value//\$/\\\$}"
     echo "$value"
 }
+
+# Create blank config.yml file
+create_config_yml() {
+    CONFIG_FILE="$CONDOR_DIR/config.yml"
+    
+    # Check if config.yml already exists
+    if [ -f "$CONFIG_FILE" ]; then
+        msg_info "config.yml already exists, skipping creation"
+        return
+    fi
+    
+    # Create blank config.yml file
+    touch "$CONFIG_FILE"
+    msg_ok "Created blank config.yml file at $CONFIG_FILE"
+}
+
 # --- Parse Command Line Arguments ---
 UPGRADE_MODE="n"
 while [[ $# -gt 0 ]]; do
@@ -429,6 +445,9 @@ run_upgrade() {
             exit 1
         fi
         msg_ok "Condor repository updated."
+        
+        # Create config.yml if it doesn't exist
+        create_config_yml
     else
         msg_warn "Condor directory not found, skipping Condor upgrade."
     fi
@@ -523,6 +542,9 @@ run_installation() {
     
     # Setup Condor configuration
     setup_condor_config
+    
+    # Create blank config.yml file
+    create_config_yml
     
     msg_info "Setting up Condor (running: make setup)..."
     if ! (cd "$CONDOR_DIR" && make setup); then
