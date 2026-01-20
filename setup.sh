@@ -80,7 +80,18 @@ command_exists() {
 }
 # Check if running in interactive mode
 is_interactive() {
-    [[ -t 0 ]] && [[ -t 1 ]] && [[ "${TERM:-dumb}" != "dumb" ]]
+    # Check if stdin (fd 0) and stdout (fd 1) are terminals
+    # Also ensure we have a proper TERM set
+    if [[ -t 0 ]] && [[ -t 1 ]] && [[ "${TERM:-dumb}" != "dumb" ]]; then
+        return 0
+    fi
+    
+    # Additional check: if /dev/tty is available and writable, we can still be interactive
+    if [[ -c /dev/tty ]] && [[ -w /dev/tty ]]; then
+        return 0
+    fi
+    
+    return 1
 }
 # Check if running inside a container
 is_container() {
@@ -246,14 +257,26 @@ install_dependencies() {
             sudo apt-get install -y git curl build-essential
             if ! command_exists docker; then
                 msg_info "Installing Docker..."
+                # Use exec to preserve stdin/stdout for docker installation
                 curl -fsSL https://get.docker.com -o get-docker.sh
-                sudo sh get-docker.sh
+                
+                # Run docker install in a way that preserves terminal state
+                if [[ -t 0 ]] && [[ -t 1 ]]; then
+                    # Interactive mode - run normally
+                    sudo sh get-docker.sh
+                else
+                    # Non-interactive - redirect to preserve state
+                    sudo sh get-docker.sh < /dev/null
+                fi
+                
                 rm -f get-docker.sh
                 sudo usermod -aG docker "$USER"
                 msg_warn "Added $USER to docker group."
                 
-                # Try to use Docker with sg to get group permissions without re-login
-                msg_info "Attempting to apply Docker group permissions..."
+                # Explicitly re-attach to terminal after Docker installation
+                exec < /dev/tty
+                
+                msg_info "Docker installation complete. Terminal state restored."
             fi
             
             # Start Docker daemon - handle both systemd and non-systemd systems
@@ -312,40 +335,20 @@ install_dependencies() {
                 brew install git
             fi
             
-            if ! command_exists curl; then
-                msg_info "Installing curl..."
-                brew install curl
-            fi
-            
             if ! command_exists make; then
-                # On macOS, make comes with Xcode Command Line Tools
-                if ! xcode-select -p >/dev/null 2>&1; then
-                    msg_info "Installing Xcode Command Line Tools (includes make)..."
-                    xcode-select --install 2>/dev/null || true
-                    msg_warn "Xcode Command Line Tools installation started. Please complete the installation dialog, then re-run this script."
-                    exit 0
-                else
-                    # CLT installed but make not found - try brew as fallback
-                    msg_info "Installing make via Homebrew..."
-                    brew install make
-                    # Note: brew installs as 'gmake', warn user
-                    if command_exists gmake && ! command_exists make; then
-                        msg_warn "GNU Make installed as 'gmake'. You may need to create an alias or use 'gmake' directly."
-                        msg_info "To use as 'make', add to your shell profile: alias make='gmake'"
-                    fi
-                fi
+                msg_info "Installing make..."
+                brew install make
             fi
             
             if ! command_exists docker; then
-                msg_info "Installing Docker Desktop for Mac..."
-                brew install --cask docker
-                msg_warn "Docker Desktop installed. Please open Docker Desktop to start the Docker daemon, then re-run this script."
-                exit 0
+                msg_error "Docker Desktop is not installed."
+                msg_info "Please install Docker Desktop for Mac from https://www.docker.com/products/docker-desktop"
+                exit 1
             fi
             ;;
         *)
             msg_error "Unsupported operating system: $OS"
-            msg_info "Please install dependencies manually: ${MISSING_DEPS[*]}"
+            msg_info "Please install missing dependencies manually: ${MISSING_DEPS[*]}"
             exit 1
             ;;
     esac
@@ -369,6 +372,12 @@ setup_condor_config() {
         echo ""
         return
     fi
+    
+    # Clear screen and show a clear header before prompts
+    echo ""
+    echo -e "${BLUE}════════════════════════════════════════${NC}"
+    echo -e "${BLUE}    Condor Bot Configuration Setup${NC}"
+    echo -e "${BLUE}════════════════════════════════════════${NC}"
     
     # 2. Prompt for Telegram Bot Token with validation
     echo ""
