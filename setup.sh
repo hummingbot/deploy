@@ -97,37 +97,17 @@ is_interactive() {
 is_container() {
     [ -f /.dockerenv ] || grep -q docker /proc/1/cgroup 2>/dev/null || grep -q containerd /proc/1/cgroup 2>/dev/null
 }
-# Escape special characters for .env file
-escape_env_value() {
-    local value="$1"
-    # Escape backslashes, double quotes, and dollar signs
-    value="${value//\\/\\\\}"
-    value="${value//\"/\\\"}"
-    value="${value//\$/\\\$}"
-    echo "$value"
-}
-
-# Create blank config.yml file
-create_config_yml() {
-    CONFIG_FILE="$CONDOR_DIR/config.yml"
-    
-    # Check if config.yml already exists
-    if [ -f "$CONFIG_FILE" ]; then
-        msg_info "config.yml already exists, skipping creation"
-        return
-    fi
-    
-    # Create blank config.yml file
-    touch "$CONFIG_FILE"
-    msg_ok "Created blank config.yml file at $CONFIG_FILE"
-}
-
 # --- Parse Command Line Arguments ---
 UPGRADE_MODE="n"
+API_ONLY_MODE="n"
 while [[ $# -gt 0 ]]; do
     case $1 in
         --upgrade)
             UPGRADE_MODE="y"
+            shift
+            ;;
+        --api)
+            API_ONLY_MODE="y"
             shift
             ;;
         -h|--help)
@@ -135,7 +115,13 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --upgrade           Upgrade existing installation"
+            echo "  --api               Install only Hummingbot API (standalone)"
             echo "  -h, --help          Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0                  Fresh installation (Condor + optional API)"
+            echo "  $0 --upgrade        Upgrade existing installations"
+            echo "  $0 --api            Install only Hummingbot API"
             exit 0
             ;;
         *)
@@ -243,206 +229,148 @@ install_dependencies() {
         msg_ok "All dependencies (git, curl, docker, docker-compose, make) are already installed."
         return
     fi
-    msg_warn "Missing dependencies: ${MISSING_DEPS[*]}"
-    msg_info "Attempting to install missing dependencies..."
-    case "$OS" in
-        linux)
-            if ! command_exists apt-get; then
-                msg_error "This script currently only supports Debian/Ubuntu-based Linux distributions for automatic dependency installation."
-                msg_info "Please install missing dependencies manually: ${MISSING_DEPS[*]}"
-                exit 1
-            fi
-            export DEBIAN_FRONTEND=noninteractive
-            sudo apt-get update
-            sudo apt-get install -y git curl build-essential
-            if ! command_exists docker; then
+    
+    msg_warn "The following dependencies are missing: ${MISSING_DEPS[*]}"
+    
+    # Only attempt auto-install on Linux
+    if [[ "$OS" != "linux" ]]; then
+        msg_error "Please install missing dependencies manually:"
+        for dep in "${MISSING_DEPS[@]}"; do
+            echo "  - $dep"
+        done
+        if [[ "$OS" == "darwin" ]]; then
+            msg_info "On macOS, consider using Homebrew: https://brew.sh"
+        fi
+        exit 1
+    fi
+    
+    # Check if running in non-interactive mode
+    if ! is_interactive; then
+        msg_error "Running in non-interactive mode. Please install the missing dependencies manually."
+        exit 1
+    fi
+    
+    # Check for root/sudo
+    if [[ $EUID -ne 0 ]]; then
+        if ! command_exists sudo; then
+            msg_error "Missing dependencies require root/sudo privileges."
+            msg_info "Please run this script with sudo or install the missing dependencies manually."
+            exit 1
+        fi
+        SUDO_CMD="sudo"
+    else
+        SUDO_CMD=""
+    fi
+    
+    echo ""
+    msg_warn "Some dependencies are missing and need to be installed."
+    INSTALL_DEPS=$(prompt_yesno "Would you like to install them automatically?")
+    
+    if [ "$INSTALL_DEPS" != "y" ]; then
+        msg_error "Installation cannot proceed without required dependencies."
+        exit 1
+    fi
+    
+    msg_info "Installing dependencies..."
+    
+    # Detect package manager
+    if command_exists apt-get; then
+        PKG_MANAGER="apt-get"
+        UPDATE_CMD="$SUDO_CMD apt-get update"
+        INSTALL_CMD="$SUDO_CMD apt-get install -y"
+    elif command_exists yum; then
+        PKG_MANAGER="yum"
+        UPDATE_CMD="$SUDO_CMD yum check-update || true"
+        INSTALL_CMD="$SUDO_CMD yum install -y"
+    elif command_exists dnf; then
+        PKG_MANAGER="dnf"
+        UPDATE_CMD="$SUDO_CMD dnf check-update || true"
+        INSTALL_CMD="$SUDO_CMD dnf install -y"
+    elif command_exists apk; then
+        PKG_MANAGER="apk"
+        UPDATE_CMD="$SUDO_CMD apk update"
+        INSTALL_CMD="$SUDO_CMD apk add"
+    elif command_exists pacman; then
+        PKG_MANAGER="pacman"
+        UPDATE_CMD="$SUDO_CMD pacman -Sy"
+        INSTALL_CMD="$SUDO_CMD pacman -S --noconfirm"
+    else
+        msg_error "Could not detect a supported package manager (apt-get, yum, dnf, apk, pacman)."
+        msg_info "Please install the following packages manually: ${MISSING_DEPS[*]}"
+        exit 1
+    fi
+    
+    msg_info "Updating package lists..."
+    if ! eval "$UPDATE_CMD"; then
+        msg_warn "Failed to update package lists, continuing anyway..."
+    fi
+    
+    for dep in "${MISSING_DEPS[@]}"; do
+        case $dep in
+            docker)
                 msg_info "Installing Docker..."
-                # Use exec to preserve stdin/stdout for docker installation
-                curl -fsSL https://get.docker.com -o get-docker.sh
-                
-                # Run docker install in a way that preserves terminal state
-                if [[ -t 0 ]] && [[ -t 1 ]]; then
-                    # Interactive mode - run normally
-                    sudo sh get-docker.sh
+                if command_exists curl; then
+                    curl -fsSL https://get.docker.com -o get-docker.sh
+                    if ! $SUDO_CMD sh get-docker.sh; then
+                        msg_error "Failed to install Docker via get.docker.com"
+                        exit 1
+                    fi
+                    rm -f get-docker.sh
+                    
+                    # Add current user to docker group (non-root only)
+                    if [[ $EUID -ne 0 ]] && command_exists usermod; then
+                        $SUDO_CMD usermod -aG docker "$USER" || true
+                        msg_info "Added $USER to docker group. You may need to log out and back in for this to take effect."
+                    fi
                 else
-                    # Non-interactive - redirect to preserve state
-                    sudo sh get-docker.sh < /dev/null
-                fi
-                
-                rm -f get-docker.sh
-                sudo usermod -aG docker "$USER"
-                msg_warn "Added $USER to docker group."
-                
-                # Explicitly re-attach to terminal after Docker installation
-                exec < /dev/tty
-                
-                msg_info "Docker installation complete. Terminal state restored."
-            fi
-            
-            # Start Docker daemon - handle both systemd and non-systemd systems
-            # Skip if running inside a container
-            if ! is_container; then
-                if command_exists systemctl; then
-                    sudo systemctl start docker 2>/dev/null || true
-                    sudo systemctl enable docker 2>/dev/null || true
-                elif command_exists service; then
-                    sudo service docker start 2>/dev/null || true
-                else
-                    msg_warn "Could not detect init system. Please start Docker daemon manually if needed."
-                fi
-            else
-                msg_info "Running inside container - Docker daemon should be managed by host"
-            fi
-            # Check if docker-compose is needed
-            if ! (command_exists docker-compose || (command_exists docker && docker compose version >/dev/null 2>&1)); then
-                msg_info "Installing Docker Compose..."
-                
-                # Try to get latest version, with fallback
-                LATEST_COMPOSE=""
-                if command_exists jq; then
-                    LATEST_COMPOSE=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq -r '.tag_name' 2>/dev/null) || true
-                fi
-                
-                # Fallback to grep/sed if jq not available or failed
-                if [ -z "$LATEST_COMPOSE" ] || [ "$LATEST_COMPOSE" = "null" ]; then
-                    LATEST_COMPOSE=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' | head -1) || true
-                fi
-                
-                # Final fallback to a known stable version
-                if [ -z "$LATEST_COMPOSE" ] || [ "$LATEST_COMPOSE" = "null" ]; then
-                    LATEST_COMPOSE="v2.24.0"
-                    msg_warn "Could not detect latest Docker Compose version, using fallback: $LATEST_COMPOSE"
-                fi
-                
-                COMPOSE_URL="https://github.com/docker/compose/releases/download/$LATEST_COMPOSE/docker-compose-$(uname -s)-$(uname -m)"
-                
-                if ! sudo curl -L "$COMPOSE_URL" -o /usr/local/bin/docker-compose; then
-                    msg_error "Failed to download Docker Compose from $COMPOSE_URL"
+                    msg_error "curl is required to install Docker automatically"
                     exit 1
                 fi
-                sudo chmod +x /usr/local/bin/docker-compose
-                msg_ok "Docker Compose installed."
-            fi
-            ;;
-        darwin)
-            if ! command_exists brew; then
-                msg_error "Homebrew is not installed. Please install it first by visiting https://brew.sh/"
-                exit 1
-            fi
-            
-            if ! command_exists git; then
-                msg_info "Installing git..."
-                brew install git
-            fi
-            
-            if ! command_exists make; then
-                msg_info "Installing make..."
-                brew install make
-            fi
-            
-            if ! command_exists docker; then
-                msg_error "Docker Desktop is not installed."
-                msg_info "Please install Docker Desktop for Mac from https://www.docker.com/products/docker-desktop"
-                exit 1
-            fi
-            ;;
-        *)
-            msg_error "Unsupported operating system: $OS"
-            msg_info "Please install missing dependencies manually: ${MISSING_DEPS[*]}"
-            exit 1
-            ;;
-    esac
-    msg_ok "Dependency installation complete."
-}
-setup_condor_config() {
-    ENV_FILE="$CONDOR_DIR/.env"
-    
-    # Check if running in interactive mode
-    if ! is_interactive; then
-        msg_warn "Non-interactive mode detected. Skipping configuration prompts."
-        msg_info "Please configure $ENV_FILE manually after installation."
-        return
-    fi
-    
-    # 1. Check if .env already exists
-    if [ -f "$ENV_FILE" ]; then
-        echo ""
-        echo ">> Found existing $ENV_FILE file."
-        echo ">> Credentials already exist. Skipping setup params."
-        echo ""
-        return
-    fi
-    
-    # Clear screen and show a clear header before prompts
-    echo ""
-    echo -e "${BLUE}════════════════════════════════════════${NC}"
-    echo -e "${BLUE}    Condor Bot Configuration Setup${NC}"
-    echo -e "${BLUE}════════════════════════════════════════${NC}"
-    
-    # 2. Prompt for Telegram Bot Token with validation
-    echo ""
-    while true; do
-        prompt "Enter your Telegram Bot Token: "
-        read -r telegram_token < /dev/tty || telegram_token=""
-        telegram_token=$(echo "$telegram_token" | tr -d '[:space:]')
-        
-        if [ -z "$telegram_token" ]; then
-            msg_warn "Telegram Bot Token cannot be empty. Please try again."
-            continue
-        fi
-        
-        # Validate token format: digits:alphanumeric
-        if ! [[ "$telegram_token" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]]; then
-            msg_error "Invalid Telegram Bot Token format. Expected format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-            msg_info "Please enter a valid token."
-            continue
-        fi
-        
-        break
+                ;;
+            docker-compose)
+                msg_info "Installing docker-compose..."
+                # Try to install docker compose plugin first
+                if [[ "$PKG_MANAGER" == "apt-get" ]]; then
+                    if ! eval "$INSTALL_CMD docker-compose-plugin"; then
+                        msg_warn "Failed to install docker-compose-plugin, trying standalone..."
+                        eval "$INSTALL_CMD docker-compose" || {
+                            msg_error "Failed to install docker-compose"
+                            exit 1
+                        }
+                    fi
+                else
+                    # For other package managers, try standalone docker-compose
+                    eval "$INSTALL_CMD docker-compose" || {
+                        msg_error "Failed to install docker-compose"
+                        exit 1
+                    }
+                fi
+                ;;
+            *)
+                msg_info "Installing $dep..."
+                if ! eval "$INSTALL_CMD $dep"; then
+                    msg_error "Failed to install $dep"
+                    exit 1
+                fi
+                ;;
+        esac
     done
     
-    # 3. Prompt for Admin User ID with validation
-    echo ""
-    echo "Enter your Telegram User ID (you will be the admin)."
-    echo "(Tip: Message @userinfobot on Telegram to get your ID)"
-    while true; do
-        prompt "Admin User ID: "
-        read -r admin_id < /dev/tty || admin_id=""
-        admin_id=$(echo "$admin_id" | tr -d '[:space:]')
-        
-        if [ -z "$admin_id" ]; then
-            msg_warn "Admin User ID cannot be empty. Please try again."
-            continue
-        fi
-        
-        # Validate user ID is numeric
-        if ! [[ "$admin_id" =~ ^[0-9]+$ ]]; then
-            msg_error "Invalid User ID. User ID should be numeric (e.g., 123456789)."
-            continue
-        fi
-        
-        break
-    done
+    msg_ok "All dependencies installed successfully!"
     
-    # 4. Prompt for OpenAI API Key (optional)
-    echo ""
-    echo "Enter your OpenAI API Key (optional, for AI features)."
-    echo "Press Enter to skip if not using AI features."
-    prompt "OpenAI API Key: "
-    read -r openai_key < /dev/tty || openai_key=""
-    openai_key=$(echo "$openai_key" | tr -d '[:space:]')
-    
-    # 5. Create .env file with escaped values
-    {
-        echo "TELEGRAM_TOKEN=$(escape_env_value "$telegram_token")"
-        echo "ADMIN_USER_ID=$(escape_env_value "$admin_id")"
-        if [ -n "$openai_key" ]; then
-            echo "OPENAI_API_KEY=$(escape_env_value "$openai_key")"
+    # Start Docker if it was just installed
+    if [[ " ${MISSING_DEPS[*]} " =~ " docker " ]]; then
+        msg_info "Starting Docker service..."
+        if command_exists systemctl; then
+            $SUDO_CMD systemctl start docker
+            $SUDO_CMD systemctl enable docker
+        elif command_exists service; then
+            $SUDO_CMD service docker start
         fi
-    } > "$ENV_FILE"
-    
-    msg_ok "Configuration saved to $ENV_FILE"
+        sleep 2
+    fi
 }
+
 run_upgrade() {
     msg_info "Existing installation detected. Starting upgrade/installation process..."
     
@@ -454,9 +382,6 @@ run_upgrade() {
             exit 1
         fi
         msg_ok "Condor repository updated."
-        
-        # Create config.yml if it doesn't exist
-        create_config_yml
     else
         msg_warn "Condor directory not found, skipping Condor upgrade."
     fi
@@ -499,7 +424,7 @@ run_upgrade() {
         msg_ok "Hummingbot API repository updated."
     fi
     # Pull latest images for condor and hummingbot-api only
-    msg_info "Pulling latest Docker images (condor and hummingbot-api only)..."
+    msg_info "Pulling latest Docker images..."
     
     if [ -f "$CONDOR_DIR/docker-compose.yml" ]; then
         msg_info "Updating Condor container..."
@@ -529,11 +454,62 @@ run_upgrade() {
     
     echo ""
     echo -e "${BLUE}Running services:${NC}"
-    msg_info "Check container status with: cd $CONDOR_DIR && $DOCKER_COMPOSE ps"
+    if [ -d "$CONDOR_DIR" ]; then
+        msg_info "Check Condor status: cd $CONDOR_DIR && $DOCKER_COMPOSE ps"
+    fi
     if [ -d "$API_DIR" ]; then
-        msg_info "Or: cd $API_DIR && $DOCKER_COMPOSE ps"
+        msg_info "Check API status: cd $API_DIR && $DOCKER_COMPOSE ps"
     fi
 }
+
+install_api_standalone() {
+    msg_info "Starting Hummingbot API standalone installation..."
+    
+    SCRIPT_DIR="$(pwd)"
+    msg_ok "Installation directory: $SCRIPT_DIR"
+    
+    echo ""
+    echo -e "${BLUE}Installing Hummingbot API:${NC}"
+    
+    msg_info "Cloning Hummingbot API repository..."
+    CREATED_DIRS+=("$API_DIR")
+    if ! git clone --depth 1 "$API_REPO" "$API_DIR"; then
+        msg_error "Failed to clone Hummingbot API repository"
+        exit 1
+    fi
+    
+    msg_info "Setting up Hummingbot API (running: make setup)..."
+    if ! (cd "$API_DIR" && make setup); then
+        msg_error "Failed to run make setup for Hummingbot API"
+        exit 1
+    fi
+    
+    msg_info "Deploying Hummingbot API (running: make deploy)..."
+    if ! (cd "$API_DIR" && make deploy); then
+        msg_error "Failed to deploy Hummingbot API"
+        exit 1
+    fi
+    
+    # --- Summary ---
+    echo ""
+    echo -e "${GREEN}════════════════════════════════════════${NC}"
+    msg_ok "Hummingbot API Installation Complete!"
+    echo -e "${GREEN}════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${BLUE}Installation Summary:${NC}"
+    msg_info "Installation directory: $SCRIPT_DIR/$API_DIR"
+    msg_info "Hummingbot API is installed and running"
+    
+    echo ""
+    echo -e "${BLUE}Next Steps:${NC}"
+    msg_info "Check API status: cd $SCRIPT_DIR/$API_DIR && $DOCKER_COMPOSE ps"
+    msg_info "View logs: cd $SCRIPT_DIR/$API_DIR && $DOCKER_COMPOSE logs -f"
+    
+    echo ""
+    echo -e "${BLUE}To upgrade in the future:${NC}"
+    msg_info "Run: cd $SCRIPT_DIR/$API_DIR && git pull && make deploy"
+}
+
 run_installation() {
     msg_info "Starting new installation..."
     
@@ -549,15 +525,15 @@ run_installation() {
         exit 1
     fi
     
-    # Setup Condor configuration
-    setup_condor_config
-    
-    # Create blank config.yml file
-    create_config_yml
-    
-    msg_info "Setting up Condor (running: make setup)..."
-    if ! (cd "$CONDOR_DIR" && make setup); then
-        msg_error "Failed to run make setup for Condor"
+    # Run Condor's setup-environment.sh script
+    msg_info "Running Condor setup script..."
+    if [ -f "$CONDOR_DIR/setup-environment.sh" ]; then
+        if ! (cd "$CONDOR_DIR" && bash setup-environment.sh); then
+            msg_error "Failed to run Condor setup-environment.sh"
+            exit 1
+        fi
+    else
+        msg_error "Condor setup-environment.sh not found"
         exit 1
     fi
     
@@ -611,15 +587,23 @@ run_installation() {
     
     echo ""
     echo -e "${BLUE}Next Steps:${NC}"
-    msg_info "Check Condor status: cd $SCRIPT_DIR/$CONDOR_DIR && $DOCKER_COMPOSE ps"
+    msg_info "1. Open Telegram and start a chat with your Condor bot"
+    msg_info "2. Use /config command to add Hummingbot API servers and manage access"
+    msg_info "3. Check Condor status: cd $SCRIPT_DIR/$CONDOR_DIR && $DOCKER_COMPOSE ps"
     if [ "$INSTALL_API" = "y" ]; then
-        msg_info "Check API status: cd $SCRIPT_DIR/$API_DIR && $DOCKER_COMPOSE ps"
+        msg_info "4. Check API status: cd $SCRIPT_DIR/$API_DIR && $DOCKER_COMPOSE ps"
+    fi
+    
+    echo ""
+    echo -e "${BLUE}Management Commands:${NC}"
+    msg_info "View Condor logs: cd $SCRIPT_DIR/$CONDOR_DIR && $DOCKER_COMPOSE logs -f"
+    if [ "$INSTALL_API" = "y" ]; then
+        msg_info "View API logs: cd $SCRIPT_DIR/$API_DIR && $DOCKER_COMPOSE logs -f"
     fi
     
     echo ""
     echo -e "${BLUE}To upgrade in the future:${NC}"
-    msg_info "Run this script with --upgrade flag from the deployment directory"
-    msg_info "Or re-run this script without flags if both repos exist"
+    msg_info "Run this script with --upgrade flag: bash $0 --upgrade"
 }
 # --- Main Execution ---
 clear
@@ -640,6 +624,24 @@ check_disk_space
 install_dependencies
 check_docker_running
 detect_docker_compose
+
+# Handle --api flag for standalone API installation
+if [ "$API_ONLY_MODE" = "y" ]; then
+    if [ -d "$API_DIR" ]; then
+        msg_warn "Hummingbot API directory already exists at $API_DIR"
+        REINSTALL=$(prompt_yesno "Do you want to upgrade/reinstall?")
+        if [ "$REINSTALL" = "y" ]; then
+            msg_info "Upgrading Hummingbot API..."
+            (cd "$API_DIR" && git pull)
+            (cd "$API_DIR" && make deploy)
+            msg_ok "Hummingbot API upgraded successfully!"
+        fi
+    else
+        install_api_standalone
+    fi
+    exit 0
+fi
+
 # Determine installation or upgrade path
 if [ "$UPGRADE_MODE" = "y" ] || ([ -d "$CONDOR_DIR" ] && [ -d "$API_DIR" ]) || ([ -d "$CONDOR_DIR" ] && [ -f "$CONDOR_DIR/docker-compose.yml" ]); then
     run_upgrade
