@@ -1,138 +1,327 @@
-# hummingbot-deploy
+# Condor Deploy
 
-Welcome to the Hummingbot Deploy project. This guide will walk you through the steps to deploy multiple trading bots using a centralized dashboard powered by the Hummingbot API and comprehensive backend services.
+Welcome to the Hummingbot Deploy repo. This repo contains bash script(s) that automate installing Condor + Hummingbot API
 
 ## Prerequisites
 
-- Docker must be installed on your machine. If you do not have Docker installed, you can download and install it from [Docker's official site](https://www.docker.com/products/docker-desktop).
-- If you are on Windows, you'll need to setup WSL2 and a Linux terminal like Ubuntu. Make sure to run the commands below in a Linux terminal and not in the Windows command prompt or Powershell.
+- **Linux/macOS** with a terminal (Windows users need WSL2 with Ubuntu)
+- **Docker** and **Docker Compose** (the installer will install these if missing)
+- **Make** and **Git** (the installer will install these if missing)
+- **Conda/Anaconda** (required only for Hummingbot API; installer will offer to install if needed)
 
 ## Architecture
 
 This deployment includes:
 
-- **Dashboard** (port 8501): Streamlit-based web UI for bot management and monitoring
-- **Hummingbot API** (port 8000): FastAPI backend service for bot operations and data management
-- **PostgreSQL Database** (port 5432): Persistent storage for bot configurations and performance data
-- **EMQX Broker** (port 1883): MQTT broker for real-time bot communication and telemetry
+- **Condor Bot** (required): Telegram bot for managing and monitoring Hummingbot trading bots
+- **Hummingbot API** (optional, port 8000): FastAPI backend service for bot operations and data management
+- **PostgreSQL Database** (port 5432, if API installed): Persistent storage for bot configurations and performance data  
+- **EMQX Broker** (port 1883, if API installed): MQTT broker for real-time bot communication and telemetry
 
-All services are orchestrated using Docker Compose for seamless deployment and management.
+Each repository manages its own Docker Compose configuration and setup process via Makefile. The installer orchestrates the complete deployment workflow.
 
-## Installation
+## Quick Install
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/hummingbot/deploy.git
-   cd deploy
-   ```
+Run this single command to download and launch the installer:
 
-## Running the Application
+```bash
+curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh | bash
+```
 
-1. **Start and configure the Application**
-   - Run the following command to download and start the app.
-   - ```bash
-     bash setup.sh
-     ```
-2. **Access the services:**
-   - **Dashboard**: Open your web browser and go to `localhost:8501`. Replace `localhost` with the IP of your server if using a cloud server.
-   - **API Documentation**: Access the Hummingbot API docs at `localhost:8000/docs`
-   - **EMQX Dashboard**: Monitor MQTT broker at `localhost:18083` (admin/public)
+### Installation Options
 
-3. **API Keys and Credentials:**
-   - Go to the credentials page
-   - You add credentials to the master account by picking the exchange and adding the API key and secret. This will encrypt the keys and store them in the master account folder.
-   - If you are managing multiple accounts you can create a new one and start adding new credentials there.
+```bash
+# Fresh installation (installs Condor first, then optionally API)
+curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh | bash
 
-4. **Create a config for PMM Simple**
-   - Go to the tab PMM Simple and create a new configuration. Soon will be released a video explaining how the strategy works.
+# Upgrade existing installation
+curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh | bash -s -- --upgrade
 
-5. **Deploy the configuration**
-   - Go to the Deploy tab, select a name for your bot, the image hummingbot/hummingbot:latest and the configuration you just created.
-   - Press the button to create a new instance.
+```
 
-6. **Check the status of the bot**
-   - Go to the Instances tab and check the status of the bot.
-     - If it's not available is because the bot is starting, wait a few seconds and refresh the page.
-     - If it's running, you can check the performance of it in the graph, refresh to see the latest data.
-     - If it's stopped, probably the bot had an error, you can check the logs in the container to understand what happened.
+### Command Line Options
 
-7. **[Optional] Monitor Services**
-   - **Hummingbot API**: Access full API documentation at `localhost:8000/docs`
-   - **Database**: PostgreSQL running on `localhost:5432` (hbot/hummingbot-api)
-   - **MQTT Broker**: EMQX dashboard at `localhost:18083` for real-time bot communication monitoring
+| Option | Description |
+|--------|-------------|
+| `--upgrade` | Upgrade existing installation or install missing components |
+| `-h, --help` | Show help message and usage examples |
 
-## Authentication
+## What the Installer Does
 
-Authentication is disabled by default. To enable Dashboard Authentication please follow the steps below: 
+The setup script will:
 
-**Set Credentials (Optional):**
+1. **Detect OS & Architecture** - Identifies your operating system (Linux/macOS) and CPU architecture (x86_64/ARM64)
+2. **Install Dependencies** - Checks and installs missing tools:
+   - Git
+   - Docker
+   - Docker Compose
+   - Make (build-essentials)
+3. **Clone Condor Repository** - Downloads the Condor bot source code
+4. **Setup Condor** - Runs `make setup` to initialize Condor environment variables and configurations
+5. **Deploy Condor** - Runs `make deploy` to start the Condor service
+6. **Prompt for API Installation** - Asks if you want to install Hummingbot API
+   - If yes:
+     - Checks for Conda (offers to install Anaconda if missing)
+     - Clones Hummingbot API repository
+     - Runs `make setup` to configure API environment
+     - Runs `make deploy` to start the API service
 
-The dashboard uses `admin` and `abc` as the default username and password respectively. It's strongly recommended to change these credentials for enhanced security.:
+## Installation Flow
 
-- Navigate to the `deploy` folder and open the `credentials.yml` file.
-- Add or modify the current username / password and save the changes afterward
-  
-  ```
-  credentials:
-    usernames:
-      admin:
-        email: admin@gmail.com
-        name: John Doe
-        logged_in: False
-        password: abc
-  cookie:
-    expiry_days: 0
-    key: some_signature_key # Must be string
-    name: some_cookie_name
-  pre-authorized:
-    emails:
-    - admin@admin.com
-  ```  
-### Enable Authentication
+### Fresh Installation
 
-- Ensure the dashboard container is not running.
-- Open the `docker-compose.yml` file within the `deploy` folder using a text editor.
-- Locate the environment variable `AUTH_SYSTEM_ENABLED` under the dashboard service configuration.
-  
-  ```
-  services:
-  dashboard:
-    container_name: dashboard
-    image: hummingbot/dashboard:latest
-    ports:
-      - "8501:8501"
-    environment:
-        - AUTH_SYSTEM_ENABLED=True
-        - BACKEND_API_HOST=hummingbot-api
-        - BACKEND_API_PORT=8000
-  ```
-- Change the value of `AUTH_SYSTEM_ENABLED` from `False` to `True`.
-- Save the changes to the `docker-compose.yml` file.
-- Relaunch Dashboard by running `bash setup.sh`
-  
-### Known Issues
-- Refreshing the browser window may log you out and display the login screen again. This is a known issue that might be addressed in future updates.
+```
+1. Start setup script
+   ↓
+2. Check & install dependencies
+   ↓
+3. Clone Condor repository
+   ↓
+4. Run: make setup (Condor)
+   ↓
+5. Run: make deploy (Condor)
+   ↓
+6. Prompt: Install Hummingbot API?
+   ├─ No → Installation complete
+   └─ Yes → Check for Conda
+      ├─ If missing → Install Anaconda (with auto-shell restart)
+      ├─ Clone Hummingbot API
+      ├─ Run: make setup (API)
+      └─ Run: make deploy (API) → Installation complete
+```
 
+### Upgrade Installation
 
-## Dashboard Functionalities
+```
+1. Start with --upgrade flag
+   ↓
+2. Check & install dependencies (if needed)
+   ↓
+3. If Condor exists → git pull (update code)
+   ↓
+4. If API exists → git pull (update code)
+   ├─ If API doesn't exist → Prompt to install
+   └─ If yes → Clone, setup, and deploy
+   ↓
+5. Pull latest Docker images (Condor & API only)
+   ↓
+6. Restart services
+   ↓
+7. Display status
+```
 
-- **Config Generator:**
-  - Create and select configurations for different v2 strategies.
-  - Backtest and deploy the selected configurations.
+## Directory Structure
 
-- **Bot Management:**
-  - Visualize bot performance in real-time.
-  - Stop and archive running bots.
+After installation, your deployment directory will contain:
 
-## Tutorial
+```
+.
+├── condor/                    # Condor bot repository
+│   ├── docker-compose.yml     # Condor's service configuration
+│   ├── .env                   # Environment variables (managed by Condor)
+│   ├── config.yml             # Condor configuration
+│   └── routines/              # Custom bot routines
+│
+└── hummingbot-api/            # Hummingbot API repository (if installed)
+    ├── docker-compose.yml     # API's service configuration
+    ├── .env                   # Environment variables (managed by API)
+    └── bots/                  # Bot instances and configurations
+```
 
-To get started with deploying your first bot, follow these step-by-step instructions:
+## Accessing Your Services
 
-1. **Prepare your bot configurations:**
-   - Select a controller and backtest your controller configs.
+After installation, access your services at:
 
-2. **Deploy a bot:**
-   - Use the dashboard UI to select and deploy your configurations.
+| Service | URL | Default Credentials |
+|---------|-----|---------------------|
+| Condor Bot | Your Telegram Bot | Send `/start` to your bot |
+| Hummingbot API | http://localhost:8000/docs | Set during installation |
+| PostgreSQL | localhost:5432 | Set during installation |
+| EMQX Dashboard | http://localhost:18083 | admin / public |
 
-3. **Monitor and Manage:**
-   - Track bot performance and make adjustments as needed through the dashboard.
+## Managing Your Installation
+
+Since each repository manages its own Docker Compose, use these commands:
+
+### Condor Bot
+
+```bash
+cd condor
+
+# View running Condor service
+docker compose ps
+
+# View logs
+docker compose logs -f
+
+# Stop Condor
+docker compose down
+
+# Start Condor
+docker compose up -d
+
+# Upgrade Condor
+docker compose pull && docker compose up -d
+```
+
+### Hummingbot API (if installed)
+
+```bash
+cd hummingbot-api
+
+# View running API services
+docker compose ps
+
+# View logs
+docker compose logs -f
+
+# Stop all API services (API, PostgreSQL, EMQX)
+docker compose down
+
+# Start all API services
+docker compose up -d
+
+# Upgrade API services
+docker compose pull && docker compose up -d
+```
+
+## Getting Started with Trading
+
+1. **Add Exchange API Credentials**
+   - Send `/credentials` command to Condor bot, or
+   - Access the API directly at http://localhost:8000/docs
+   - Add your exchange API keys (they will be encrypted)
+
+2. **Create a Trading Configuration**
+   - Use Condor bot's `/config` command, or
+   - Use the API's configuration endpoints
+   - Define your trading strategy and parameters
+
+3. **Deploy a Bot**
+   - Send `/deploy` command to Condor bot
+   - Select your configuration
+   - Monitor bot status in real-time
+
+4. **Monitor Performance**
+   - Check bot status via Condor bot
+   - View API logs for detailed information
+   - Access raw metrics via API endpoints
+
+## Upgrading
+
+To upgrade your installation to the latest versions:
+
+### Option 1: Re-run the installer (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh | bash -s -- --upgrade
+```
+
+### Option 2: Manual upgrade
+
+```bash
+# Upgrade Condor
+cd condor
+git pull
+docker compose pull
+docker compose up -d
+
+# Upgrade Hummingbot API (if installed)
+cd ../hummingbot-api
+git pull
+docker compose pull
+docker compose up -d
+```
+
+## Troubleshooting
+
+### Services not starting
+
+```bash
+# Check Condor logs
+cd condor && docker compose logs -f
+
+# Check API logs (if installed)
+cd ../hummingbot-api && docker compose logs -f
+```
+
+### Condor bot not responding
+
+- Verify your Telegram Bot Token is correct
+- Check `ADMIN_USER_ID` matches your Telegram user ID
+- Ensure Condor container is running: `cd condor && docker compose ps`
+
+### API connection issues
+
+- Verify API container is running: `cd hummingbot-api && docker compose ps`
+- Check PostgreSQL and EMQX are healthy
+- Review API logs: `cd hummingbot-api && docker compose logs hummingbot-api`
+
+### Port conflicts
+
+If you have other services using the default ports, edit the respective `docker-compose.yml`:
+
+- **Condor**: Uses host network (no port conflicts)
+- **API**: Default ports are 8000 (API), 5432 (PostgreSQL), 1883 (EMQX)
+
+### Conda installation issues
+
+If Anaconda installation fails:
+
+1. Install manually from https://www.anaconda.com/download
+2. Ensure conda is in your PATH: `conda --version`
+3. Re-run the installer with `--upgrade` flag
+
+## Support
+
+- **Documentation**: [Hummingbot Docs](https://docs.hummingbot.org)
+- **Discord**: [Hummingbot Discord](https://discord.hummingbot.io)
+- **GitHub Issues**: [Report bugs](https://github.com/hummingbot/deploy/issues)
+
+## Advanced Configuration
+
+### Modifying Environment Variables
+
+Each repository manages its own `.env` file. To modify settings:
+
+```bash
+# Edit Condor environment
+cd condor
+nano .env
+docker compose restart
+
+# Edit API environment (if installed)
+cd ../hummingbot-api
+nano .env
+docker compose restart
+```
+
+### Customizing Condor Routines
+
+Add custom trading routines to `condor/routines/`:
+
+```bash
+cd condor/routines
+# Add your .py files here
+docker compose restart
+```
+
+### Managing PostgreSQL Data
+
+API data is stored in Docker volumes. To backup:
+
+```bash
+cd hummingbot-api
+docker compose exec postgres pg_dump -U hbot hummingbot_api > backup.sql
+```
+
+To restore:
+
+```bash
+cd hummingbot-api
+cat backup.sql | docker compose exec -T postgres psql -U hbot hummingbot_api
+```
+
+## License
+
+Hummingbot Deploy is licensed under the HUMMINGBOT OPEN SOURCE LICENSE AGREEMENT. See LICENSE file for details.
