@@ -371,6 +371,126 @@ install_dependencies() {
     fi
 }
 
+update_condor_config() {
+    # Update condor/config.yml by inserting the template (if needed)
+    # and replacing placeholders with actual values from .env and current timestamp.
+    local config_file="$CONDOR_DIR/config.yml"
+    local env_file="$CONDOR_DIR/.env"
+
+    if [ ! -d "$CONDOR_DIR" ]; then
+        msg_warn "Condor directory '$CONDOR_DIR' not found, skipping config.yml update."
+        return
+    fi
+
+    if [ ! -f "$env_file" ]; then
+        msg_warn "Condor .env not found at $env_file, skipping config.yml update."
+        return
+    fi
+
+    # Extract ADMIN_USER_ID from .env
+    local admin_id
+    admin_id=$(grep -E '^ADMIN_USER_ID=' "$env_file" | sed -E 's/^ADMIN_USER_ID=//')
+
+    if [ -z "$admin_id" ]; then
+        msg_warn "ADMIN_USER_ID not set in $env_file, skipping config.yml update."
+        return
+    fi
+
+    # Current timestamp in ISO-8601 UTC format
+    local current_ts
+    current_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # If config.yml doesn't exist or is empty, populate it with the current template contents
+    if [ ! -f "$config_file" ] || [ ! -s "$config_file" ]; then
+        msg_info "Creating default Condor config.yml at $config_file"
+        cat > "$config_file" << 'EOF'
+servers:
+  local:
+    host: localhost
+    port: 8000
+    username: admin
+    password: admin
+default_server: local
+admin_id: <admin_user_id>
+users:
+  <admin_user_id>:
+    user_id: <admin_user_id>
+    role: admin
+    created_at: <current_timestamp>
+    notes: Primary admin from ADMIN_USER_ID
+server_access:
+  local:
+    owner_id: <admin_user_id>
+    created_at: <current_timestamp>
+    shared_with: {}
+chat_defaults:
+  <admin_user_id>: local
+version: 1
+EOF
+    fi
+
+    msg_info "Updating Condor config.yml with ADMIN_USER_ID and current timestamp."
+
+    # Replace placeholders in config.yml (handle macOS vs Linux sed)
+    if [[ "${OS:-}" == "darwin" ]]; then
+        sed -i '' \
+            -e "s/<admin_user_id>/$admin_id/g" \
+            -e "s/<current_timestamp>/$current_ts/g" \
+            "$config_file"
+    else
+        sed -i \
+            -e "s/<admin_user_id>/$admin_id/g" \
+            -e "s/<current_timestamp>/$current_ts/g" \
+            "$config_file"
+    fi
+
+    msg_ok "Condor config.yml updated at $config_file"
+}
+
+# Sync Condor config.yml local server username/password to match hummingbot-api/.env
+# (so Condor can connect to the local API with the credentials entered during API setup)
+sync_condor_config_api_credentials() {
+    local config_file="$CONDOR_DIR/config.yml"
+    local api_env="$API_DIR/.env"
+
+    if [ ! -f "$api_env" ]; then
+        return 0
+    fi
+    if [ ! -f "$config_file" ]; then
+        return 0
+    fi
+
+    local api_user api_pass
+    api_user=$(grep -E '^USERNAME=' "$api_env" | sed -E 's/^USERNAME=//' | head -1 | tr -d '\r\n')
+    api_pass=$(grep -E '^PASSWORD=' "$api_env" | sed -E 's/^PASSWORD=//' | head -1 | tr -d '\r\n')
+    api_user="${api_user:-admin}"
+    api_pass="${api_pass:-admin}"
+
+    # Escape for sed: backslash and ampersand
+    local api_user_esc api_pass_esc
+    api_user_esc="${api_user//\\/\\\\}"
+    api_user_esc="${api_user_esc//&/\\&}"
+    api_pass_esc="${api_pass//\\/\\\\}"
+    api_pass_esc="${api_pass_esc//&/\\&}"
+
+    msg_info "Syncing Condor config.yml local server credentials with Hummingbot API .env (username=$api_user)."
+
+    if [[ "${OS:-}" == "darwin" ]]; then
+        sed -i '' \
+            -e "0,/^    username: /s/^    username: .*/    username: $api_user_esc/" \
+            -e "0,/^    password: /s/^    password: .*/    password: $api_pass_esc/" \
+            "$config_file"
+    else
+        sed -i \
+            -e "0,/^    username: /s/^    username: .*/    username: $api_user_esc/" \
+            -e "0,/^    password: /s/^    password: .*/    password: $api_pass_esc/" \
+            "$config_file"
+    fi
+
+    msg_ok "Condor config.yml local server credentials updated to match API .env"
+}
+
+
 run_upgrade() {
     msg_info "Existing installation detected. Starting upgrade/installation process..."
     
@@ -450,6 +570,12 @@ run_upgrade() {
             msg_warn "Failed to restart Hummingbot API services"
         fi
     fi
+
+    # Ensure Condor config.yml is populated and placeholders are replaced
+    update_condor_config
+    # If API is installed, sync Condor config local server credentials with API .env
+    sync_condor_config_api_credentials
+
     msg_ok "Installation/upgrade complete!"
     
     echo ""
@@ -544,6 +670,9 @@ run_installation() {
     fi
     msg_ok "Condor installation complete!"
     
+    # Ensure Condor config.yml is populated and placeholders are replaced
+    update_condor_config
+    
     # --- Prompt for API Installation ---
     echo ""
     INSTALL_API=$(prompt_yesno "Do you also want to install Hummingbot API on this machine?")
@@ -571,6 +700,8 @@ run_installation() {
             exit 1
         fi
         msg_ok "Hummingbot API installation complete!"
+        # Ensure Condor config local server credentials match API .env
+        sync_condor_config_api_credentials
     fi
     # --- Summary ---
     echo ""
