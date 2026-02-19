@@ -488,6 +488,18 @@ sync_condor_config_api_credentials() {
     fi
 
     msg_ok "Condor config.yml local server credentials updated to match API .env"
+
+    # If credentials differ from default admin/admin, restart Condor so config is applied
+    if [ "$api_user" != "admin" ] || [ "$api_pass" != "admin" ]; then
+        if [ -f "$CONDOR_DIR/docker-compose.yml" ]; then
+            msg_info "Restarting Condor container to apply new API credentials..."
+            if (cd "$CONDOR_DIR" && $DOCKER_COMPOSE restart); then
+                msg_ok "Condor container restarted."
+            else
+                msg_warn "Could not restart Condor container. You may need to run: cd $CONDOR_DIR && $DOCKER_COMPOSE restart"
+            fi
+        fi
+    fi
 }
 
 
