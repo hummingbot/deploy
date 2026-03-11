@@ -569,6 +569,10 @@ run_upgrade() {
         if ! (cd "$API_DIR" && $DOCKER_COMPOSE pull); then
             msg_warn "Failed to pull Hummingbot API images, continuing anyway..."
         fi
+        msg_info "Pulling latest Hummingbot image (hummingbot/hummingbot:latest)..."
+        if ! docker pull hummingbot/hummingbot:latest; then
+            msg_warn "Failed to pull hummingbot/hummingbot:latest, continuing anyway..."
+        fi
     fi
     # Restart services
     msg_info "Restarting services..."
@@ -776,6 +780,8 @@ if [ "$API_ONLY_MODE" = "y" ]; then
         if [ "$REINSTALL" = "y" ]; then
             msg_info "Upgrading Hummingbot API..."
             (cd "$API_DIR" && git pull)
+            msg_info "Pulling latest Hummingbot image (hummingbot/hummingbot:latest)..."
+            docker pull hummingbot/hummingbot:latest || msg_warn "Failed to pull hummingbot/hummingbot:latest, continuing anyway..."
             (cd "$API_DIR" && make deploy)
             msg_ok "Hummingbot API upgraded successfully!"
         fi
