@@ -203,6 +203,9 @@ check_disk_space() {
     msg_ok "Sufficient disk space available (${available_mb}MB)"
 }
 install_dependencies() {
+    # $1: "all" (default) requires Docker; "condor-only" skips Docker checks
+    local mode="${1:-all}"
+
     msg_info "Checking for dependencies..."
     
     MISSING_DEPS=()
@@ -213,20 +216,30 @@ install_dependencies() {
     if ! command_exists curl; then
         MISSING_DEPS+=("curl")
     fi
-    if ! command_exists docker; then
-        MISSING_DEPS+=("docker")
-    fi
-    
-    # Check for docker-compose (either standalone or as docker compose plugin)
-    if ! (command_exists docker-compose || (command_exists docker && docker compose version >/dev/null 2>&1)); then
-        MISSING_DEPS+=("docker-compose")
+
+    # Docker is only required when installing the Hummingbot API
+    if [[ "$mode" == "all" ]]; then
+        if ! command_exists docker; then
+            MISSING_DEPS+=("docker")
+        fi
+        
+        # Check for docker-compose (either standalone or as docker compose plugin)
+        if ! (command_exists docker-compose || (command_exists docker && docker compose version >/dev/null 2>&1)); then
+            MISSING_DEPS+=("docker-compose")
+        fi
     fi
     
     if ! command_exists make; then
         MISSING_DEPS+=("make")
     fi
+
+    local dep_label="git, curl, make"
+    if [[ "$mode" == "all" ]]; then
+        dep_label="git, curl, docker, docker-compose, make"
+    fi
+
     if [ ${#MISSING_DEPS[@]} -eq 0 ]; then
-        msg_ok "All dependencies (git, curl, docker, docker-compose, make) are already installed."
+        msg_ok "All dependencies ($dep_label) are already installed."
         return
     fi
     
@@ -491,17 +504,123 @@ sync_condor_config_api_credentials() {
 
     # If credentials differ from default admin/admin, restart Condor so config is applied
     if [ "$api_user" != "admin" ] || [ "$api_pass" != "admin" ]; then
-        if [ -f "$CONDOR_DIR/docker-compose.yml" ]; then
-            msg_info "Restarting Condor container to apply new API credentials..."
-            if (cd "$CONDOR_DIR" && $DOCKER_COMPOSE restart); then
-                msg_ok "Condor container restarted."
-            else
-                msg_warn "Could not restart Condor container. You may need to run: cd $CONDOR_DIR && $DOCKER_COMPOSE restart"
-            fi
+        if [ -d "$CONDOR_DIR" ]; then
+            msg_info "Restarting Condor to apply new API credentials..."
+            start_condor_tmux
         fi
     fi
 }
 
+
+# --- Condor source-mode helpers ---
+
+# (Re)start Condor in a detached tmux session (same as deploy/condor/Makefile: uv run)
+start_condor_tmux() {
+    local condor_abs
+    condor_abs="$(cd "$CONDOR_DIR" && pwd)"
+
+    if ! command_exists uv; then
+        msg_error "'uv' is not on PATH. Run $CONDOR_DIR/setup-environment.sh once (it installs uv if needed), or install from https://docs.astral.sh/uv/"
+        exit 1
+    fi
+
+    if ! command_exists tmux; then
+        msg_error "tmux is not installed. Please install tmux and try again."
+        exit 1
+    fi
+
+    if tmux has-session -t condor 2>/dev/null; then
+        msg_info "Restarting existing tmux session 'condor'..."
+        tmux kill-session -t condor
+    fi
+
+    msg_info "Starting Condor in detached tmux session 'condor'..."
+    local uv_bin
+    uv_bin="$(command -v uv)"
+    tmux new-session -d -s condor \
+        "cd '$condor_abs' && '$uv_bin' run python main.py; exec bash"
+    msg_ok "Condor is running in tmux session 'condor'."
+    msg_info "Attach: tmux attach -t condor  |  Detach: Ctrl+B, D  |  Stop: tmux kill-session -t condor"
+}
+
+# Global npm installs often need root on Linux; use sudo when not already root.
+npm_install_global_elevated() {
+    if [ "${EUID:-0}" -eq 0 ]; then
+        npm install -g "$@"
+    elif command_exists sudo; then
+        sudo -H npm install -g "$@"
+    else
+        msg_warn "sudo not available; running npm install -g without elevation (may fail)."
+        npm install -g "$@"
+    fi
+}
+
+# Mirrors deploy/condor/Makefile `install` after `setup`: uv sync --dev, setup-chrome, install-ai-tools
+install_condor_post_setup_extras() {
+    if [ ! -d "$CONDOR_DIR" ] || [ ! -f "$CONDOR_DIR/pyproject.toml" ]; then
+        msg_warn "Condor project not found; skipping dev deps, Chrome, and AI CLI tools."
+        return 0
+    fi
+    if ! command_exists uv; then
+        msg_warn "uv not on PATH; skipping Condor Makefile extras (run from $CONDOR_DIR after installing uv)."
+        return 0
+    fi
+
+    echo ""
+    msg_info "Condor: syncing dev Python dependencies (uv sync --dev, same as Makefile install)..."
+    if ! (cd "$CONDOR_DIR" && uv sync --dev); then
+        msg_warn "uv sync --dev failed; skipping remaining Condor optional steps."
+        return 0
+    fi
+
+    msg_info "Condor: installing Chrome for Plotly image generation (kaleido)..."
+    if (cd "$CONDOR_DIR" && uv run python -c "import kaleido; kaleido.get_chrome_sync()" 2>/dev/null); then
+        :
+    else
+        msg_warn "Chrome/kaleido setup skipped (not required for basic usage)."
+    fi
+
+    msg_info "Condor: installing AI CLI tools (Claude Code, Gemini CLI, ACP helpers)..."
+    if command_exists claude; then
+        msg_info "Claude Code already installed ($(claude --version 2>/dev/null || echo ok))"
+    else
+        if command_exists curl; then
+            if ! curl -fsSL https://claude.ai/install.sh | sh; then
+                msg_warn "Claude Code install script failed."
+            fi
+        else
+            msg_warn "curl not found; skipping Claude Code install."
+        fi
+    fi
+
+    if ! command_exists node; then
+        msg_warn "Node.js not found; skipping Gemini CLI and ACP npm packages. Install from https://nodejs.org/ if needed."
+    else
+        if command_exists gemini; then
+            msg_info "Gemini CLI already installed ($(gemini --version 2>/dev/null || echo ok))"
+        else
+            if ! npm_install_global_elevated @google/gemini-cli; then
+                msg_warn "Failed to install @google/gemini-cli."
+            fi
+        fi
+        if command_exists claude-code-acp; then
+            msg_info "claude-code-acp already installed"
+        else
+            if ! npm_install_global_elevated @zed-industries/claude-code-acp; then
+                msg_warn "Failed to install claude-code-acp."
+            fi
+        fi
+        if command_exists codex-acp; then
+            msg_info "codex-acp already installed"
+        else
+            if ! npm_install_global_elevated @zed-industries/codex-acp; then
+                msg_warn "Failed to install codex-acp."
+            fi
+        fi
+    fi
+
+    msg_ok "Condor optional Makefile steps (dev deps, Chrome, AI tools) finished."
+}
 
 run_upgrade() {
     msg_info "Existing installation detected. Starting upgrade/installation process..."
@@ -514,6 +633,7 @@ run_upgrade() {
             exit 1
         fi
         msg_ok "Condor repository updated."
+        install_condor_post_setup_extras
     else
         msg_warn "Condor directory not found, skipping Condor upgrade."
     fi
@@ -558,11 +678,10 @@ run_upgrade() {
     # Pull latest images for condor and hummingbot-api only
     msg_info "Pulling latest Docker images..."
     
-    if [ -f "$CONDOR_DIR/docker-compose.yml" ]; then
-        msg_info "Updating Condor container..."
-        if ! (cd "$CONDOR_DIR" && $DOCKER_COMPOSE pull); then
-            msg_warn "Failed to pull Condor images, continuing anyway..."
-        fi
+    # Condor runs via source/tmux — no Docker image to pull; just restart the session
+    if [ -d "$CONDOR_DIR" ]; then
+        msg_info "Restarting Condor tmux session after upgrade..."
+        start_condor_tmux
     fi
     if [ -f "$API_DIR/docker-compose.yml" ]; then
         msg_info "Updating Hummingbot API container..."
@@ -576,10 +695,8 @@ run_upgrade() {
     fi
     # Restart services
     msg_info "Restarting services..."
-    if [ -f "$CONDOR_DIR/docker-compose.yml" ]; then
-        if ! (cd "$CONDOR_DIR" && $DOCKER_COMPOSE up -d --remove-orphans); then
-            msg_warn "Failed to restart Condor services"
-        fi
+    if [ -d "$CONDOR_DIR" ]; then
+        start_condor_tmux
     fi
     if [ -f "$API_DIR/docker-compose.yml" ]; then
         if ! (cd "$API_DIR" && $DOCKER_COMPOSE up -d --remove-orphans); then
@@ -597,7 +714,7 @@ run_upgrade() {
     echo ""
     echo -e "${BLUE}Running services:${NC}"
     if [ -d "$CONDOR_DIR" ]; then
-        msg_info "Check Condor status: cd $CONDOR_DIR && $DOCKER_COMPOSE ps"
+        msg_info "Check Condor status: tmux attach -t condor"
     fi
     if [ -d "$API_DIR" ]; then
         msg_info "Check API status: cd $API_DIR && $DOCKER_COMPOSE ps"
@@ -667,10 +784,10 @@ run_installation() {
         exit 1
     fi
     
-    # Run Condor's setup-environment.sh script
+    # Run Condor's setup-environment.sh script (handles .env/config, deps, tmux launch)
     msg_info "Running Condor setup script..."
     if [ -f "$CONDOR_DIR/setup-environment.sh" ]; then
-        if ! (cd "$CONDOR_DIR" && bash setup-environment.sh); then
+        if ! (cd "$CONDOR_DIR" && source setup-environment.sh); then
             msg_error "Failed to run Condor setup-environment.sh"
             exit 1
         fi
@@ -678,12 +795,9 @@ run_installation() {
         msg_error "Condor setup-environment.sh not found"
         exit 1
     fi
-    
-    msg_info "Deploying Condor (running: make deploy)..."
-    if ! (cd "$CONDOR_DIR" && make deploy); then
-        msg_error "Failed to deploy Condor"
-        exit 1
-    fi
+
+    install_condor_post_setup_extras
+
     msg_ok "Condor installation complete!"
     
     # Ensure Condor config.yml is populated and placeholders are replaced
@@ -694,6 +808,11 @@ run_installation() {
     INSTALL_API=$(prompt_yesno "Do you also want to install Hummingbot API on this machine?")
     
     if [ "$INSTALL_API" = "y" ]; then
+        # Docker is required for the API — check and install now if needed
+        install_dependencies "all"
+        check_docker_running
+        detect_docker_compose
+
         echo ""
         echo -e "${BLUE}Installing Hummingbot API:${NC}"
         
@@ -736,14 +855,16 @@ run_installation() {
     echo -e "${BLUE}Next Steps:${NC}"
     msg_info "1. Open Telegram and start a chat with your Condor bot"
     msg_info "2. Use /config command to add Hummingbot API servers and manage access"
-    msg_info "3. Check Condor status: cd $SCRIPT_DIR/$CONDOR_DIR && $DOCKER_COMPOSE ps"
+    msg_info "3. Check Condor status: tmux attach -t condor  (Ctrl+B, D to detach)"
     if [ "$INSTALL_API" = "y" ]; then
         msg_info "4. Check API status: cd $SCRIPT_DIR/$API_DIR && $DOCKER_COMPOSE ps"
     fi
     
     echo ""
     echo -e "${BLUE}Management Commands:${NC}"
-    msg_info "View Condor logs: cd $SCRIPT_DIR/$CONDOR_DIR && $DOCKER_COMPOSE logs -f"
+    msg_info "View Condor logs: tmux attach -t condor"
+    msg_info "Stop Condor:      tmux kill-session -t condor"
+    msg_info "Restart Condor:   cd $SCRIPT_DIR/$CONDOR_DIR && source setup-environment.sh"
     if [ "$INSTALL_API" = "y" ]; then
         msg_info "View API logs: cd $SCRIPT_DIR/$API_DIR && $DOCKER_COMPOSE logs -f"
     fi
@@ -768,12 +889,13 @@ echo -e "${CYAN}  Hummingbot Deploy Installer${NC}"
 echo ""
 detect_os_arch
 check_disk_space
-install_dependencies
-check_docker_running
-detect_docker_compose
 
 # Handle --api flag for standalone API installation
 if [ "$API_ONLY_MODE" = "y" ]; then
+    install_dependencies "all"
+    check_docker_running
+    detect_docker_compose
+
     if [ -d "$API_DIR" ]; then
         msg_warn "Hummingbot API directory already exists at $API_DIR"
         REINSTALL=$(prompt_yesno "Do you want to upgrade/reinstall?")
@@ -793,7 +915,18 @@ fi
 
 # Determine installation or upgrade path
 if [ "$UPGRADE_MODE" = "y" ] || ([ -d "$CONDOR_DIR" ] && [ -d "$API_DIR" ]) || ([ -d "$CONDOR_DIR" ] && [ -f "$CONDOR_DIR/docker-compose.yml" ]); then
+    # Upgrade: Docker is needed if API directory exists
+    if [ -d "$API_DIR" ]; then
+        install_dependencies "all"
+        check_docker_running
+        detect_docker_compose
+    else
+        install_dependencies "condor-only"
+    fi
     run_upgrade
 else
+    # Fresh install: Docker will be needed if the user opts in for the API
+    # We check for Docker/compose later inside run_installation if API is chosen.
+    install_dependencies "condor-only"
     run_installation
 fi
