@@ -11,6 +11,8 @@ API_REPO="https://github.com/hummingbot/hummingbot-api.git"
 CONDOR_DIR="condor"
 API_DIR="hummingbot-api"
 DOCKER_COMPOSE=""  # Will be set by detect_docker_compose()
+CONDOR_BRANCH=""   # Optional: Branch to clone
+CONDOR_PR=""       # Optional: PR ID to pull
 # --- Color Codes ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -110,18 +112,30 @@ while [[ $# -gt 0 ]]; do
             API_ONLY_MODE="y"
             shift
             ;;
+        -b|--branch)
+            CONDOR_BRANCH="$2"
+            shift 2
+            ;;
+        -p|--pr)
+            CONDOR_PR="$2"
+            shift 2
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --upgrade           Upgrade existing installation"
             echo "  --api               Install only Hummingbot API (standalone)"
+            echo "  -b, --branch NAME   Clone a specific branch of Condor"
+            echo "  -p, --pr ID         Pull a specific PR ID from Condor"
             echo "  -h, --help          Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0                  Fresh installation (Condor + optional API)"
             echo "  $0 --upgrade        Upgrade existing installations"
             echo "  $0 --api            Install only Hummingbot API"
+            echo "  $0 --branch dev     Install from the 'dev' branch"
+            echo "  $0 --pr 123         Install from PR #123"
             exit 0
             ;;
         *)
@@ -232,10 +246,13 @@ install_dependencies() {
     if ! command_exists make; then
         MISSING_DEPS+=("make")
     fi
+    if ! command_exists tmux; then
+        MISSING_DEPS+=("tmux")
+    fi
 
-    local dep_label="git, curl, make"
+    local dep_label="git, curl, make, tmux"
     if [[ "$mode" == "all" ]]; then
-        dep_label="git, curl, docker, docker-compose, make"
+        dep_label="git, curl, docker, docker-compose, make, tmux"
     fi
 
     if [ ${#MISSING_DEPS[@]} -eq 0 ]; then
@@ -519,13 +536,24 @@ start_condor_tmux() {
     local condor_abs
     condor_abs="$(cd "$CONDOR_DIR" && pwd)"
 
-    if ! command_exists uv; then
-        msg_error "'uv' is not on PATH. Run $CONDOR_DIR/setup-environment.sh once (it installs uv if needed), or install from https://docs.astral.sh/uv/"
+    if ! command_exists tmux; then
+        msg_error "tmux is not installed. Please install tmux and try again."
         exit 1
     fi
 
-    if ! command_exists tmux; then
-        msg_error "tmux is not installed. Please install tmux and try again."
+    # Find uv even if it's not on PATH in this shell (common after running setup-environment.sh in a subshell)
+    local uv_bin=""
+    if command_exists uv; then
+        uv_bin="$(command -v uv)"
+    elif [ -x "$HOME/.local/bin/uv" ]; then
+        uv_bin="$HOME/.local/bin/uv"
+    elif [ -x "$HOME/.cargo/bin/uv" ]; then
+        uv_bin="$HOME/.cargo/bin/uv"
+    fi
+
+    if [ -z "$uv_bin" ]; then
+        msg_error "'uv' is not available on PATH or in common install locations (~/.local/bin, ~/.cargo/bin)."
+        msg_info "Run $CONDOR_DIR/setup-environment.sh once (it installs uv if needed), or install from https://docs.astral.sh/uv/ and ensure 'uv' is on PATH."
         exit 1
     fi
 
@@ -535,8 +563,6 @@ start_condor_tmux() {
     fi
 
     msg_info "Starting Condor in detached tmux session 'condor'..."
-    local uv_bin
-    uv_bin="$(command -v uv)"
     tmux new-session -d -s condor \
         "cd '$condor_abs' && '$uv_bin' run python main.py; exec bash"
     msg_ok "Condor is running in tmux session 'condor'."
@@ -777,11 +803,29 @@ run_installation() {
     # --- Clone and Setup Condor ---
     echo ""
     echo -e "${BLUE}Installing Condor Bot:${NC}"
-    msg_info "Cloning Condor repository..."
-    CREATED_DIRS+=("$CONDOR_DIR")
-    if ! git clone --depth 1 "$CONDOR_REPO" "$CONDOR_DIR"; then
-        msg_error "Failed to clone Condor repository"
-        exit 1
+
+    if [ -n "$CONDOR_PR" ]; then
+        msg_info "Cloning Condor and pulling PR #$CONDOR_PR..."
+        CREATED_DIRS+=("$CONDOR_DIR")
+        git clone "$CONDOR_REPO" "$CONDOR_DIR"
+        (cd "$CONDOR_DIR" && git fetch origin "pull/$CONDOR_PR/head:pr-$CONDOR_PR" && git checkout "pr-$CONDOR_PR") || {
+            msg_error "Failed to pull PR #$CONDOR_PR"
+            exit 1
+        }
+    elif [ -n "$CONDOR_BRANCH" ]; then
+        msg_info "Cloning Condor branch '$CONDOR_BRANCH'..."
+        CREATED_DIRS+=("$CONDOR_DIR")
+        if ! git clone --depth 1 -b "$CONDOR_BRANCH" "$CONDOR_REPO" "$CONDOR_DIR"; then
+            msg_error "Failed to clone branch '$CONDOR_BRANCH'"
+            exit 1
+        fi
+    else
+        msg_info "Cloning Condor repository..."
+        CREATED_DIRS+=("$CONDOR_DIR")
+        if ! git clone --depth 1 "$CONDOR_REPO" "$CONDOR_DIR"; then
+            msg_error "Failed to clone Condor repository"
+            exit 1
+        fi
     fi
     
     # Run Condor's setup-environment.sh script (handles .env/config, deps, tmux launch)
@@ -802,42 +846,10 @@ run_installation() {
     
     # Ensure Condor config.yml is populated and placeholders are replaced
     update_condor_config
-    
-    # --- Prompt for API Installation ---
-    echo ""
-    INSTALL_API=$(prompt_yesno "Do you also want to install Hummingbot API on this machine?")
-    
-    if [ "$INSTALL_API" = "y" ]; then
-        # Docker is required for the API — check and install now if needed
-        install_dependencies "all"
-        check_docker_running
-        detect_docker_compose
 
-        echo ""
-        echo -e "${BLUE}Installing Hummingbot API:${NC}"
-        
-        msg_info "Cloning Hummingbot API repository..."
-        CREATED_DIRS+=("$API_DIR")
-        if ! git clone --depth 1 "$API_REPO" "$API_DIR"; then
-            msg_error "Failed to clone Hummingbot API repository"
-            exit 1
-        fi
-        
-        msg_info "Setting up Hummingbot API (running: make setup)..."
-        if ! (cd "$API_DIR" && make setup); then
-            msg_error "Failed to run make setup for Hummingbot API"
-            exit 1
-        fi
-        
-        msg_info "Deploying Hummingbot API (running: make deploy)..."
-        if ! (cd "$API_DIR" && make deploy); then
-            msg_error "Failed to deploy Hummingbot API"
-            exit 1
-        fi
-        msg_ok "Hummingbot API installation complete!"
-        # Ensure Condor config local server credentials match API .env
-        sync_condor_config_api_credentials
-    fi
+    # Start Condor in a tmux session (source-mode run)
+    start_condor_tmux
+    
     # --- Summary ---
     echo ""
     echo -e "${GREEN}════════════════════════════════════════${NC}"
@@ -847,27 +859,19 @@ run_installation() {
     echo -e "${BLUE}Installation Summary:${NC}"
     msg_info "Installation directory: $SCRIPT_DIR"
     msg_info "Condor is installed and running"
-    if [ "$INSTALL_API" = "y" ]; then
-        msg_info "Hummingbot API is installed and running"
-    fi
     
     echo ""
     echo -e "${BLUE}Next Steps:${NC}"
     msg_info "1. Open Telegram and start a chat with your Condor bot"
     msg_info "2. Use /config command to add Hummingbot API servers and manage access"
     msg_info "3. Check Condor status: tmux attach -t condor  (Ctrl+B, D to detach)"
-    if [ "$INSTALL_API" = "y" ]; then
-        msg_info "4. Check API status: cd $SCRIPT_DIR/$API_DIR && $DOCKER_COMPOSE ps"
-    fi
+    # Hummingbot API installation and management are handled via Condor's setup script.
     
     echo ""
     echo -e "${BLUE}Management Commands:${NC}"
     msg_info "View Condor logs: tmux attach -t condor"
     msg_info "Stop Condor:      tmux kill-session -t condor"
     msg_info "Restart Condor:   cd $SCRIPT_DIR/$CONDOR_DIR && source setup-environment.sh"
-    if [ "$INSTALL_API" = "y" ]; then
-        msg_info "View API logs: cd $SCRIPT_DIR/$API_DIR && $DOCKER_COMPOSE logs -f"
-    fi
     
     echo ""
     echo -e "${BLUE}To upgrade in the future:${NC}"
