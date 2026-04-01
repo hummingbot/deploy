@@ -80,6 +80,19 @@ prompt_yesno() {
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
+
+# Bash does not "restart" after installing tools; export PATH so this same script run sees them.
+# (Docker group membership for $USER still requires a new login session — see install message.)
+refresh_tool_path() {
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    if command_exists npm; then
+        local npm_prefix
+        npm_prefix=$(npm config get prefix 2>/dev/null || true)
+        if [[ -n "$npm_prefix" ]] && [[ -d "$npm_prefix/bin" ]]; then
+            export PATH="$npm_prefix/bin:$PATH"
+        fi
+    fi
+}
 # Check if running in interactive mode
 is_interactive() {
     # Check if stdin (fd 0) and stdout (fd 1) are terminals
@@ -230,6 +243,27 @@ install_dependencies() {
     if ! command_exists curl; then
         MISSING_DEPS+=("curl")
     fi
+    if ! command_exists python3; then
+        MISSING_DEPS+=("python3")
+    fi
+    if ! command_exists node; then
+        MISSING_DEPS+=("nodejs")
+    fi
+    if ! command_exists npm; then
+        MISSING_DEPS+=("npm")
+    fi
+    if ! command_exists tsc; then
+        MISSING_DEPS+=("typescript")
+    fi
+    if ! command_exists make; then
+        MISSING_DEPS+=("make")
+    fi
+    if ! command_exists tmux; then
+        MISSING_DEPS+=("tmux")
+    fi
+    if ! command_exists uv; then
+        MISSING_DEPS+=("uv")
+    fi
 
     # Docker is only required when installing the Hummingbot API
     if [[ "$mode" == "all" ]]; then
@@ -242,21 +276,15 @@ install_dependencies() {
             MISSING_DEPS+=("docker-compose")
         fi
     fi
-    
-    if ! command_exists make; then
-        MISSING_DEPS+=("make")
-    fi
-    if ! command_exists tmux; then
-        MISSING_DEPS+=("tmux")
-    fi
 
-    local dep_label="git, curl, make, tmux"
+    local dep_label="git, curl, python3, nodejs, npm, typescript (tsc), make, tmux, uv"
     if [[ "$mode" == "all" ]]; then
-        dep_label="git, curl, docker, docker-compose, make, tmux"
+        dep_label="git, curl, python3, nodejs, npm, typescript (tsc), docker, docker-compose, make, tmux, uv"
     fi
 
     if [ ${#MISSING_DEPS[@]} -eq 0 ]; then
         msg_ok "All dependencies ($dep_label) are already installed."
+        refresh_tool_path
         return
     fi
     
@@ -270,6 +298,7 @@ install_dependencies() {
         done
         if [[ "$OS" == "darwin" ]]; then
             msg_info "On macOS, consider using Homebrew: https://brew.sh"
+            msg_info "Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
         fi
         exit 1
     fi
@@ -337,6 +366,79 @@ install_dependencies() {
     
     for dep in "${MISSING_DEPS[@]}"; do
         case $dep in
+            python3)
+                msg_info "Installing Python 3..."
+                if [[ "$PKG_MANAGER" == "apt-get" ]]; then
+                    if ! eval "$INSTALL_CMD python3 python3-pip"; then
+                        msg_error "Failed to install Python 3"
+                        exit 1
+                    fi
+                else
+                    if ! eval "$INSTALL_CMD python3"; then
+                        msg_error "Failed to install Python 3"
+                        exit 1
+                    fi
+                fi
+                ;;
+            nodejs)
+                msg_info "Installing Node.js..."
+                if [[ "$PKG_MANAGER" == "apt-get" ]]; then
+                    if ! eval "$INSTALL_CMD nodejs npm"; then
+                        msg_error "Failed to install Node.js"
+                        exit 1
+                    fi
+                elif [[ "$PKG_MANAGER" == "yum" ]] || [[ "$PKG_MANAGER" == "dnf" ]]; then
+                    if ! eval "$INSTALL_CMD nodejs npm"; then
+                        msg_error "Failed to install Node.js"
+                        exit 1
+                    fi
+                else
+                    if ! eval "$INSTALL_CMD nodejs"; then
+                        msg_error "Failed to install Node.js"
+                        exit 1
+                    fi
+                fi
+                ;;
+            typescript)
+                msg_info "Installing TypeScript (tsc)..."
+                if ! command_exists npm; then
+                    msg_error "npm is required to install TypeScript. Install Node.js first."
+                    exit 1
+                fi
+                if ! npm install -g typescript; then
+                    msg_error "Failed to install TypeScript (npm install -g typescript)"
+                    exit 1
+                fi
+                refresh_tool_path
+                ;;
+            uv)
+                msg_info "Installing uv..."
+                if command_exists curl; then
+                    if curl -LsSf https://astral.sh/uv/install.sh | sh; then
+                        # Add to PATH for current session
+                        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+                        
+                        # Persist to shell profile
+                        for profile in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc"; do
+                            if [ -f "$profile" ]; then
+                                if ! grep -q 'uv/bin\|\.cargo/bin\|\.local/bin' "$profile" 2>/dev/null; then
+                                    echo 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"' >> "$profile"
+                                    msg_ok "Added uv to PATH in $profile"
+                                    break
+                                fi
+                            fi
+                        done
+                        
+                        msg_ok "uv installed successfully"
+                    else
+                        msg_error "Failed to install uv"
+                        exit 1
+                    fi
+                else
+                    msg_error "curl is required to install uv"
+                    exit 1
+                fi
+                ;;
             docker)
                 msg_info "Installing Docker..."
                 if command_exists curl; then
@@ -399,6 +501,8 @@ install_dependencies() {
         fi
         sleep 2
     fi
+
+    refresh_tool_path
 }
 
 update_condor_config() {
@@ -418,283 +522,211 @@ update_condor_config() {
     fi
 
     # Extract ADMIN_USER_ID from .env
-    local admin_id
-    admin_id=$(grep -E '^ADMIN_USER_ID=' "$env_file" | sed -E 's/^ADMIN_USER_ID=//')
+    local admin_user_id
+    admin_user_id=$(grep "^ADMIN_USER_ID=" "$env_file" 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
 
-    if [ -z "$admin_id" ]; then
-        msg_warn "ADMIN_USER_ID not set in $env_file, skipping config.yml update."
+    if [ -z "$admin_user_id" ]; then
+        msg_warn "ADMIN_USER_ID not found in $env_file, skipping config.yml update."
         return
     fi
 
-    # Current timestamp in ISO-8601 UTC format
-    local current_ts
-    current_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    # Get current date
+    local current_date
+    current_date=$(date "+%Y-%m-%d")
 
-    # If config.yml doesn't exist or is empty, populate it with the current template contents
+    # If config.yml doesn't exist or is empty, create it with template
     if [ ! -f "$config_file" ] || [ ! -s "$config_file" ]; then
-        msg_info "Creating default Condor config.yml at $config_file"
-        cat > "$config_file" << 'EOF'
+        msg_info "Creating $config_file with template..."
+        cat > "$config_file" << 'CONFIGEOF'
+# Telegram user IDs allowed to access the bot
+authorized_users:
+  - ADMIN_USER_ID_PLACEHOLDER  # Replace with your Telegram user ID
+
+# Hummingbot API server configurations
 servers:
   local:
     host: localhost
     port: 8000
     username: admin
     password: admin
-default_server: local
-admin_id: <admin_user_id>
-users:
-  <admin_user_id>:
-    user_id: <admin_user_id>
-    role: admin
-    created_at: <current_timestamp>
-    notes: Primary admin from ADMIN_USER_ID
-server_access:
-  local:
-    owner_id: <admin_user_id>
-    created_at: <current_timestamp>
-    shared_with: {}
-chat_defaults:
-  <admin_user_id>: local
-version: 1
-EOF
+
+# Controller configurations (loaded at startup)
+controllers:
+  # Example configuration file entries (created: DATE_PLACEHOLDER):
+  # main:
+  #   type: directional_strategy_vwap
+  #   connector: binance
+  #   trading_pair: BTC-USDT
+  #   leverage: 20
+  #   total_amount_quote: 100
+  #   ...
+CONFIGEOF
     fi
 
-    msg_info "Updating Condor config.yml with ADMIN_USER_ID and current timestamp."
-
-    # Replace placeholders in config.yml (handle macOS vs Linux sed)
-    if [[ "${OS:-}" == "darwin" ]]; then
-        sed -i '' \
-            -e "s/<admin_user_id>/$admin_id/g" \
-            -e "s/<current_timestamp>/$current_ts/g" \
-            "$config_file"
-    else
-        sed -i \
-            -e "s/<admin_user_id>/$admin_id/g" \
-            -e "s/<current_timestamp>/$current_ts/g" \
-            "$config_file"
+    # Replace placeholders if they exist
+    if grep -q "ADMIN_USER_ID_PLACEHOLDER" "$config_file" 2>/dev/null; then
+        sed -i.bak "s/ADMIN_USER_ID_PLACEHOLDER/$admin_user_id/g" "$config_file"
+        rm -f "$config_file.bak"
+        msg_ok "Replaced ADMIN_USER_ID_PLACEHOLDER with $admin_user_id in $config_file"
     fi
 
-    msg_ok "Condor config.yml updated at $config_file"
+    if grep -q "DATE_PLACEHOLDER" "$config_file" 2>/dev/null; then
+        sed -i.bak "s/DATE_PLACEHOLDER/$current_date/g" "$config_file"
+        rm -f "$config_file.bak"
+        msg_ok "Replaced DATE_PLACEHOLDER with $current_date in $config_file"
+    fi
 }
 
-# Sync Condor config.yml local server username/password to match hummingbot-api/.env
-# (so Condor can connect to the local API with the credentials entered during API setup)
 sync_condor_config_api_credentials() {
-    local config_file="$CONDOR_DIR/config.yml"
+    # If API is installed, sync Condor's config.yml 'local' server credentials with API's .env
+    local condor_config="$CONDOR_DIR/config.yml"
     local api_env="$API_DIR/.env"
 
+    if [ ! -f "$condor_config" ]; then
+        msg_warn "Condor config.yml not found, skipping credential sync."
+        return
+    fi
+
     if [ ! -f "$api_env" ]; then
-        return 0
-    fi
-    if [ ! -f "$config_file" ]; then
-        return 0
+        msg_warn "API .env not found at $api_env, skipping credential sync."
+        return
     fi
 
-    local api_user api_pass
-    api_user=$(grep -E '^USERNAME=' "$api_env" | sed -E 's/^USERNAME=//' | head -1 | tr -d '\r\n')
-    api_pass=$(grep -E '^PASSWORD=' "$api_env" | sed -E 's/^PASSWORD=//' | head -1 | tr -d '\r\n')
-    api_user="${api_user:-admin}"
-    api_pass="${api_pass:-admin}"
+    local api_username
+    local api_password
+    api_username=$(grep "^USERNAME=" "$api_env" 2>/dev/null | cut -d= -f2)
+    api_password=$(grep "^PASSWORD=" "$api_env" 2>/dev/null | cut -d= -f2)
 
-    # Escape for sed: backslash and ampersand
-    local api_user_esc api_pass_esc
-    api_user_esc="${api_user//\\/\\\\}"
-    api_user_esc="${api_user_esc//&/\\&}"
-    api_pass_esc="${api_pass//\\/\\\\}"
-    api_pass_esc="${api_pass_esc//&/\\&}"
-
-    msg_info "Syncing Condor config.yml local server credentials with Hummingbot API .env (username=$api_user)."
-
-    if [[ "${OS:-}" == "darwin" ]]; then
-        sed -i '' \
-            -e "0,/^    username: /s/^    username: .*/    username: $api_user_esc/" \
-            -e "0,/^    password: /s/^    password: .*/    password: $api_pass_esc/" \
-            "$config_file"
-    else
-        sed -i \
-            -e "0,/^    username: /s/^    username: .*/    username: $api_user_esc/" \
-            -e "0,/^    password: /s/^    password: .*/    password: $api_pass_esc/" \
-            "$config_file"
+    if [ -z "$api_username" ] || [ -z "$api_password" ]; then
+        msg_warn "Could not extract API credentials from $api_env, skipping sync."
+        return
     fi
 
-    msg_ok "Condor config.yml local server credentials updated to match API .env"
+    # Update config.yml 'local' server credentials using sed (simple approach)
+    # This assumes a structure like:
+    # servers:
+    #   local:
+    #     host: ...
+    #     username: ...
+    #     password: ...
 
-    # If credentials differ from default admin/admin, restart Condor so config is applied
-    if [ "$api_user" != "admin" ] || [ "$api_pass" != "admin" ]; then
-        if [ -d "$CONDOR_DIR" ]; then
-            msg_info "Restarting Condor to apply new API credentials..."
-            start_condor_tmux
-        fi
+    # Replace username
+    if grep -A5 "servers:" "$condor_config" | grep -q "username:"; then
+        sed -i.bak "/servers:/,/^[^ ]/ s/username: .*/username: $api_username/" "$condor_config"
+        rm -f "$condor_config.bak"
+    fi
+
+    # Replace password
+    if grep -A5 "servers:" "$condor_config" | grep -q "password:"; then
+        sed -i.bak "/servers:/,/^[^ ]/ s/password: .*/password: $api_password/" "$condor_config"
+        rm -f "$condor_config.bak"
+    fi
+
+    msg_ok "Synced Condor config.yml local server credentials with API .env"
+}
+
+install_condor_post_setup_extras() {
+    # After Condor's setup-environment.sh runs, this function runs any additional steps
+    # that are needed but not covered by the setup script (e.g., installing extra tools).
+    msg_info "Running post-setup extras for Condor..."
+    
+    # Currently, setup-environment.sh handles all necessary setup
+    # This function is a placeholder for future enhancements
+    
+    msg_ok "Post-setup extras complete"
+}
+
+run_condor_manual_install_and_build() {
+    # Execute the equivalent of `make install` and `make run` manually,
+    # except for the final app start command which is handled in tmux.
+    local condor_path="$CONDOR_DIR"
+
+    if [ ! -d "$condor_path" ]; then
+        msg_error "Condor directory not found: $condor_path"
+        exit 1
+    fi
+
+    msg_info "Running Condor setup script (manual make install step)..."
+    if ! (cd "$condor_path" && chmod +x setup-environment.sh && ./setup-environment.sh); then
+        msg_error "Failed to run setup-environment.sh"
+        exit 1
+    fi
+
+    msg_info "Syncing Python dependencies (uv sync --dev)..."
+    if ! (cd "$condor_path" && uv sync --dev); then
+        msg_error "Failed to sync Condor Python dependencies"
+        exit 1
+    fi
+
+    msg_info "Checking Node.js and npm..."
+    if ! command_exists node; then
+        msg_error "Node.js is required. Install it from https://nodejs.org"
+        exit 1
+    fi
+    if ! command_exists npm; then
+        msg_error "npm is required. Install Node.js/npm from https://nodejs.org"
+        exit 1
+    fi
+
+    msg_info "Installing frontend dependencies (npm install)..."
+    if ! (cd "$condor_path/frontend" && npm install); then
+        msg_error "Failed to install frontend dependencies"
+        exit 1
+    fi
+
+    msg_info "Setting up Chrome for chart rendering (optional)..."
+    if ! (cd "$condor_path" && uv run python -c "import kaleido; kaleido.get_chrome_sync()" 2>/dev/null); then
+        msg_warn "Chrome setup skipped (not required for basic usage)"
+    fi
+
+    msg_info "Building frontend (manual make run step)..."
+    if ! (cd "$condor_path/frontend" && npm run build); then
+        msg_error "Failed to build frontend"
+        exit 1
     fi
 }
 
-
-# --- Condor source-mode helpers ---
-
-# (Re)start Condor in a detached tmux session (same as deploy/condor/Makefile: uv run)
 start_condor_tmux() {
-    local condor_abs
-    condor_abs="$(cd "$CONDOR_DIR" && pwd)"
-
-    if ! command_exists tmux; then
-        msg_error "tmux is not installed. Please install tmux and try again."
-        exit 1
-    fi
-
-    # Find uv even if it's not on PATH in this shell (common after running setup-environment.sh in a subshell)
-    local uv_bin=""
-    if command_exists uv; then
-        uv_bin="$(command -v uv)"
-    elif [ -x "$HOME/.local/bin/uv" ]; then
-        uv_bin="$HOME/.local/bin/uv"
-    elif [ -x "$HOME/.cargo/bin/uv" ]; then
-        uv_bin="$HOME/.cargo/bin/uv"
-    fi
-
-    if [ -z "$uv_bin" ]; then
-        msg_error "'uv' is not available on PATH or in common install locations (~/.local/bin, ~/.cargo/bin)."
-        msg_info "Run $CONDOR_DIR/setup-environment.sh once (it installs uv if needed), or install from https://docs.astral.sh/uv/ and ensure 'uv' is on PATH."
-        exit 1
-    fi
-
+    # Start or restart Condor in a tmux session
+    msg_info "Starting Condor in tmux session..."
+    
+    # Kill existing session if present
     if tmux has-session -t condor 2>/dev/null; then
-        msg_info "Restarting existing tmux session 'condor'..."
+        msg_info "Stopping existing Condor tmux session..."
         tmux kill-session -t condor
     fi
-
-    msg_info "Starting Condor in detached tmux session 'condor'..."
-    tmux new-session -d -s condor \
-        "cd '$condor_abs' && '$uv_bin' run python main.py; exec bash"
-    msg_ok "Condor is running in tmux session 'condor'."
-    msg_info "Attach: tmux attach -t condor  |  Detach: Ctrl+B, D  |  Stop: tmux kill-session -t condor"
-}
-
-# Global npm installs often need root on Linux; use sudo when not already root.
-npm_install_global_elevated() {
-    if [ "${EUID:-0}" -eq 0 ]; then
-        npm install -g "$@"
-    elif command_exists sudo; then
-        sudo -H npm install -g "$@"
-    else
-        msg_warn "sudo not available; running npm install -g without elevation (may fail)."
-        npm install -g "$@"
-    fi
-}
-
-# Mirrors deploy/condor/Makefile `install` after `setup`: uv sync --dev, setup-chrome, install-ai-tools
-install_condor_post_setup_extras() {
-    if [ ! -d "$CONDOR_DIR" ] || [ ! -f "$CONDOR_DIR/pyproject.toml" ]; then
-        msg_warn "Condor project not found; skipping dev deps, Chrome, and AI CLI tools."
-        return 0
-    fi
-    if ! command_exists uv; then
-        msg_warn "uv not on PATH; skipping Condor Makefile extras (run from $CONDOR_DIR after installing uv)."
-        return 0
-    fi
-
-    echo ""
-    msg_info "Condor: syncing dev Python dependencies (uv sync --dev, same as Makefile install)..."
-    if ! (cd "$CONDOR_DIR" && uv sync --dev); then
-        msg_warn "uv sync --dev failed; skipping remaining Condor optional steps."
-        return 0
-    fi
-
-    msg_info "Condor: installing Chrome for Plotly image generation (kaleido)..."
-    if (cd "$CONDOR_DIR" && uv run python -c "import kaleido; kaleido.get_chrome_sync()" 2>/dev/null); then
-        :
-    else
-        msg_warn "Chrome/kaleido setup skipped (not required for basic usage)."
-    fi
-
-    msg_info "Condor: installing AI CLI tools (Claude Code, Gemini CLI, ACP helpers)..."
-    if command_exists claude; then
-        msg_info "Claude Code already installed ($(claude --version 2>/dev/null || echo ok))"
-    else
-        if command_exists curl; then
-            if ! curl -fsSL https://claude.ai/install.sh | sh; then
-                msg_warn "Claude Code install script failed."
-            fi
+    
+    # Start new session
+    if [ -d "$CONDOR_DIR" ]; then
+        (cd "$CONDOR_DIR" && tmux new-session -d -s condor "uv run python main.py")
+        sleep 2
+        
+        if tmux has-session -t condor 2>/dev/null; then
+            msg_ok "Condor started in tmux session 'condor'"
+            msg_info "View logs: tmux attach -t condor (Ctrl+B, D to detach)"
         else
-            msg_warn "curl not found; skipping Claude Code install."
+            msg_error "Failed to start Condor in tmux"
         fi
-    fi
-
-    if ! command_exists node; then
-        msg_warn "Node.js not found; skipping Gemini CLI and ACP npm packages. Install from https://nodejs.org/ if needed."
     else
-        if command_exists gemini; then
-            msg_info "Gemini CLI already installed ($(gemini --version 2>/dev/null || echo ok))"
-        else
-            if ! npm_install_global_elevated @google/gemini-cli; then
-                msg_warn "Failed to install @google/gemini-cli."
-            fi
-        fi
-        if command_exists claude-code-acp; then
-            msg_info "claude-code-acp already installed"
-        else
-            if ! npm_install_global_elevated @zed-industries/claude-code-acp; then
-                msg_warn "Failed to install claude-code-acp."
-            fi
-        fi
-        if command_exists codex-acp; then
-            msg_info "codex-acp already installed"
-        else
-            if ! npm_install_global_elevated @zed-industries/codex-acp; then
-                msg_warn "Failed to install codex-acp."
-            fi
-        fi
+        msg_error "Condor directory not found: $CONDOR_DIR"
     fi
-
-    msg_ok "Condor optional Makefile steps (dev deps, Chrome, AI tools) finished."
 }
 
 run_upgrade() {
-    msg_info "Existing installation detected. Starting upgrade/installation process..."
+    msg_info "Starting upgrade process..."
     
-    # Upgrade Condor if it exists
+    # Pull latest changes for both repos if they exist
     if [ -d "$CONDOR_DIR" ]; then
-        msg_info "Upgrading Condor..."
+        msg_info "Updating Condor repository..."
         if ! (cd "$CONDOR_DIR" && git pull); then
             msg_error "Failed to update Condor repository"
             exit 1
         fi
         msg_ok "Condor repository updated."
-        install_condor_post_setup_extras
-    else
-        msg_warn "Condor directory not found, skipping Condor upgrade."
     fi
-    # Check if API needs to be installed (Condor exists but API doesn't)
-    if [ -d "$CONDOR_DIR" ] && [ ! -d "$API_DIR" ]; then
-        echo ""
-        msg_info "Hummingbot API is not installed yet."
-        INSTALL_API=$(prompt_yesno "Do you want to install Hummingbot API now?")
-        
-        if [ "$INSTALL_API" = "y" ]; then
-            echo ""
-            echo -e "${BLUE}Installing Hummingbot API:${NC}"
-            msg_info "Cloning Hummingbot API repository..."
-            CREATED_DIRS+=("$API_DIR")
-            if ! git clone --depth 1 "$API_REPO" "$API_DIR"; then
-                msg_error "Failed to clone Hummingbot API repository"
-                exit 1
-            fi
-            
-            msg_info "Setting up Hummingbot API (running: make setup)..."
-            if ! (cd "$API_DIR" && make setup); then
-                msg_error "Failed to run make setup for Hummingbot API"
-                exit 1
-            fi
-            
-            msg_info "Deploying Hummingbot API (running: make deploy)..."
-            if ! (cd "$API_DIR" && make deploy); then
-                msg_error "Failed to deploy Hummingbot API"
-                exit 1
-            fi
-            msg_ok "Hummingbot API installation complete!"
-        fi
-    # Upgrade Hummingbot API if it already exists
-    elif [ -d "$API_DIR" ]; then
-        msg_info "Upgrading Hummingbot API..."
+    
+    if [ -d "$API_DIR" ]; then
+        msg_info "Updating Hummingbot API repository..."
         if ! (cd "$API_DIR" && git pull); then
             msg_error "Failed to update Hummingbot API repository"
             exit 1
@@ -828,17 +860,12 @@ run_installation() {
         fi
     fi
     
-    # Run Condor's setup-environment.sh script (handles .env/config, deps, tmux launch)
-    msg_info "Running Condor setup script..."
-    if [ -f "$CONDOR_DIR/setup-environment.sh" ]; then
-        if ! (cd "$CONDOR_DIR" && source setup-environment.sh); then
-            msg_error "Failed to run Condor setup-environment.sh"
-            exit 1
-        fi
-    else
+    # Manually run the equivalent of make install + make run (except app launch in tmux)
+    if [ ! -f "$CONDOR_DIR/setup-environment.sh" ]; then
         msg_error "Condor setup-environment.sh not found"
         exit 1
     fi
+    run_condor_manual_install_and_build
 
     install_condor_post_setup_extras
 
@@ -847,7 +874,7 @@ run_installation() {
     # Ensure Condor config.yml is populated and placeholders are replaced
     update_condor_config
 
-    # Start Condor in a tmux session (source-mode run)
+    # Start Condor in tmux after install/build steps complete
     start_condor_tmux
     
     # --- Summary ---
@@ -871,7 +898,7 @@ run_installation() {
     echo -e "${BLUE}Management Commands:${NC}"
     msg_info "View Condor logs: tmux attach -t condor"
     msg_info "Stop Condor:      tmux kill-session -t condor"
-    msg_info "Restart Condor:   cd $SCRIPT_DIR/$CONDOR_DIR && source setup-environment.sh"
+    msg_info "Restart Condor:   cd $SCRIPT_DIR/$CONDOR_DIR && bash setup-environment.sh"
     
     echo ""
     echo -e "${BLUE}To upgrade in the future:${NC}"
