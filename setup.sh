@@ -85,6 +85,13 @@ command_exists() {
 # (Docker group membership for $USER still requires a new login session — see install message.)
 refresh_tool_path() {
     export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    
+    # Load nvm if available
+    export NVM_DIR="$HOME/.nvm"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+        \. "$NVM_DIR/nvm.sh"
+    fi
+    
     if command_exists npm; then
         local npm_prefix
         npm_prefix=$(npm config get prefix 2>/dev/null || true)
@@ -229,6 +236,44 @@ check_disk_space() {
     fi
     msg_ok "Sufficient disk space available (${available_mb}MB)"
 }
+
+install_nodejs_via_nvm() {
+    msg_info "Installing Node.js via nvm..."
+    
+    # Install nvm if not present
+    if [ ! -d "$HOME/.nvm" ]; then
+        msg_info "Installing nvm (Node Version Manager)..."
+        if curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash; then
+            msg_ok "nvm installed successfully"
+        else
+            msg_error "Failed to install nvm"
+            return 1
+        fi
+    else
+        msg_ok "nvm is already installed"
+    fi
+    
+    # Load nvm into current shell
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+    
+    # Install Node.js LTS (version 24)
+    msg_info "Installing Node.js v24 (LTS)..."
+    if nvm install 24 2>/dev/null; then
+        nvm use 24
+        nvm alias default 24
+        msg_ok "Node.js v24 installed and set as default"
+        
+        # Update PATH for current session
+        export PATH="$NVM_DIR/versions/node/$(nvm version)/bin:$PATH"
+        return 0
+    else
+        msg_error "Failed to install Node.js via nvm"
+        return 1
+    fi
+}
+
 install_dependencies() {
     # $1: "all" (default) requires Docker; "condor-only" skips Docker checks
     local mode="${1:-all}"
@@ -246,15 +291,6 @@ install_dependencies() {
     if ! command_exists python3; then
         MISSING_DEPS+=("python3")
     fi
-    if ! command_exists node; then
-        MISSING_DEPS+=("nodejs")
-    fi
-    if ! command_exists npm; then
-        MISSING_DEPS+=("npm")
-    fi
-    if ! command_exists tsc; then
-        MISSING_DEPS+=("typescript")
-    fi
     if ! command_exists make; then
         MISSING_DEPS+=("make")
     fi
@@ -263,6 +299,18 @@ install_dependencies() {
     fi
     if ! command_exists uv; then
         MISSING_DEPS+=("uv")
+    fi
+
+    # Check for Node.js/npm - will be installed via nvm if missing
+    NODE_NEEDS_INSTALL=false
+    if ! command_exists node || ! command_exists npm; then
+        NODE_NEEDS_INSTALL=true
+        MISSING_DEPS+=("nodejs/npm")
+    fi
+
+    # TypeScript check
+    if ! command_exists tsc; then
+        MISSING_DEPS+=("typescript")
     fi
 
     # Docker is only required when installing the Hummingbot API
@@ -299,6 +347,7 @@ install_dependencies() {
         if [[ "$OS" == "darwin" ]]; then
             msg_info "On macOS, consider using Homebrew: https://brew.sh"
             msg_info "Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
+            msg_info "Install Node.js via nvm: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash"
         fi
         exit 1
     fi
@@ -380,31 +429,24 @@ install_dependencies() {
                     fi
                 fi
                 ;;
-            nodejs)
-                msg_info "Installing Node.js..."
-                if [[ "$PKG_MANAGER" == "apt-get" ]]; then
-                    if ! eval "$INSTALL_CMD nodejs npm"; then
-                        msg_error "Failed to install Node.js"
-                        exit 1
-                    fi
-                elif [[ "$PKG_MANAGER" == "yum" ]] || [[ "$PKG_MANAGER" == "dnf" ]]; then
-                    if ! eval "$INSTALL_CMD nodejs npm"; then
-                        msg_error "Failed to install Node.js"
-                        exit 1
-                    fi
-                else
-                    if ! eval "$INSTALL_CMD nodejs"; then
-                        msg_error "Failed to install Node.js"
-                        exit 1
-                    fi
+            nodejs/npm)
+                # Install via nvm instead of system package manager
+                if ! install_nodejs_via_nvm; then
+                    msg_error "Failed to install Node.js via nvm"
+                    exit 1
                 fi
                 ;;
             typescript)
                 msg_info "Installing TypeScript (tsc)..."
+                
+                # Make sure npm is available
+                refresh_tool_path
+                
                 if ! command_exists npm; then
-                    msg_error "npm is required to install TypeScript. Install Node.js first."
+                    msg_error "npm is required to install TypeScript but is not available"
                     exit 1
                 fi
+                
                 if ! npm install -g typescript; then
                     msg_error "Failed to install TypeScript (npm install -g typescript)"
                     exit 1
@@ -658,13 +700,22 @@ run_condor_manual_install_and_build() {
         exit 1
     fi
 
+    # Load nvm and check for Node.js/npm
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
     msg_info "Checking Node.js and npm..."
     if ! command_exists node; then
-        msg_error "Node.js is required. Install it from https://nodejs.org"
-        exit 1
+        msg_error "Node.js is required but not found"
+        msg_info "Attempting to install Node.js via nvm..."
+        if ! install_nodejs_via_nvm; then
+            msg_error "Failed to install Node.js"
+            exit 1
+        fi
     fi
+    
     if ! command_exists npm; then
-        msg_error "npm is required. Install Node.js/npm from https://nodejs.org"
+        msg_error "npm is required but not found"
         exit 1
     fi
 
