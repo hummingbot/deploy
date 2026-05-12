@@ -9,7 +9,7 @@ This folder helps you install **Condor** (a Telegram bot for trading) and, if yo
 - A **Mac** or **Linux** computer (Windows users: install **WSL2** with Ubuntu, then use Terminal inside Ubuntu).
 - The **Terminal** app open.
 - A **stable internet** connection.
-- For **Hummingbot API only** (the second command below): **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (Mac/Windows) or Docker on Linux, **installed and running** before you run the command.
+- For **Hummingbot API** (the API-only install below, or if you choose to add the API during Condor setup): **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (Mac/Windows) or Docker on Linux, **installed and running** on that machine before you run the command.
 
 ---
 
@@ -21,13 +21,13 @@ Open Terminal, go to an **empty folder** where you are happy to create files (fo
 curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh | bash
 ```
 
-The script will guide you (for example **Telegram** bot token and your user id). When it finishes, continue to **After installation** below.
+The installer walks you through setup—for example your **Telegram** bot token and your **Telegram user id**—and can also install **Hummingbot API** on the **same machine** if you choose that when it asks. When it finishes, continue to **After installation** below.
 
 ---
 
 ## Install only Hummingbot API
 
-Use this if you **only** want the API and database on this machine (Docker must already be running):
+Use this when you are deploying **Hummingbot API** on its own machine (for example a **VPS** or another **remote server**), or any time you **only** need the API and database stack and **not** Condor. **Docker** must be installed and running on that server before you run the command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh | bash -s -- --hummingbot-api
@@ -37,7 +37,9 @@ curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/s
 
 ## Update to the latest version
 
-Go back to the **same folder** where you first ran the installer (where the `condor` folder lives), then paste:
+**Easiest — from Telegram:** open your Condor bot and send **`/update`**. Condor checks whether newer code is available and shows buttons so you can update and restart **without** using Terminal. That only works for the Telegram account you set as **admin** when you first set up the bot.
+
+**Manual — from the computer:** if you prefer to run the installer again yourself, go back to the **same folder** where you first installed (where the `condor` folder lives), open Terminal there, then paste:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh | bash -s -- --upgrade
@@ -85,7 +87,8 @@ On the same computer, open:
 
 Only try this if the `curl` command fails or your network blocks the download. You need more technical comfort here.
 
-**Condor** — clone [the Condor repository](https://github.com/hummingbot/condor), then in that folder run `make install` and start the app with `make run` .
+**Condor** — clone [the Condor repository](https://github.com/hummingbot/condor), then in that folder run `make install` and start the app with `make run` 
+
 
 **Hummingbot API (Docker):**
 
