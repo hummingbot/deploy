@@ -17,6 +17,8 @@ set -eu
 # --- Configuration ---
 CONDOR_REPO="https://github.com/hummingbot/condor.git"
 API_REPO="https://github.com/hummingbot/hummingbot-api.git"
+# Used in printed hints when the script has no file path (e.g. curl | bash)
+DEPLOY_SETUP_RAW_URL="https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh"
 CONDOR_DIR="condor"
 API_DIR="hummingbot-api"
 DOCKER_COMPOSE=""
@@ -150,8 +152,32 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Absolute path to this script (for printed instructions)
-DEPLOY_SCRIPT_ABS="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/$(basename "${BASH_SOURCE[0]}")"
+# Absolute path for "bash /path/setup.sh …" hints. Empty when piped: `curl … | bash` leaves
+# BASH_SOURCE unset, and `set -u` would error on ${BASH_SOURCE[0]}.
+deploy_resolve_script_abs() {
+    local s="${BASH_SOURCE[0]:-}"
+    if [[ -n "$s" && -f "$s" ]]; then
+        echo "$(cd "$(dirname "$s")" >/dev/null 2>&1 && pwd)/$(basename "$s")"
+        return
+    fi
+    if [[ -f "$(pwd)/setup.sh" ]]; then
+        echo "$(pwd)/setup.sh"
+        return
+    fi
+    echo ""
+}
+DEPLOY_SCRIPT_ABS="$(deploy_resolve_script_abs)"
+
+# Print either `bash <path> FLAGS` or `curl … | bash -s -- FLAGS` when path is unknown.
+deploy_print_rerun() {
+    local extra="$1"
+    local suffix="${2:-}"
+    if [[ -n "${DEPLOY_SCRIPT_ABS:-}" ]]; then
+        echo -e "       ${GREEN}bash ${DEPLOY_SCRIPT_ABS} ${extra}${NC}${suffix}"
+    else
+        echo -e "       ${GREEN}curl -fsSL ${DEPLOY_SETUP_RAW_URL} | bash -s -- ${extra}${NC}${suffix}"
+    fi
+}
 
 print_tmux_section() {
     echo ""
@@ -191,7 +217,7 @@ print_hummingbot_api_manual_section() {
     echo ""
     echo "  Same installer, API-only mode (clones or upgrades ./hummingbot-api, pulls images):"
     echo ""
-    echo -e "       ${GREEN}bash ${DEPLOY_SCRIPT_ABS} --hummingbot-api${NC}"
+    deploy_print_rerun "--hummingbot-api"
     echo ""
     echo "  Fully manual equivalent (after Docker is installed and running):"
     echo ""
@@ -208,7 +234,7 @@ print_condor_install_footer() {
     echo -e "${BOLD}  Later: upgrade Condor + sibling repos${NC}"
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "       ${GREEN}bash ${DEPLOY_SCRIPT_ABS} --upgrade${NC}"
+    deploy_print_rerun "--upgrade"
     echo ""
     print_hummingbot_api_manual_section
 }
@@ -661,7 +687,7 @@ print_api_post_install_summary() {
     echo -e "       ${GREEN}cd ${base}/${API_DIR} && git pull && docker compose pull && docker compose up -d${NC}"
     echo ""
     echo "  Or re-run the installer (pulls repo + compose + client images):"
-    echo -e "       ${GREEN}bash ${DEPLOY_SCRIPT_ABS} --hummingbot-api${NC}  ${CYAN}# use -y if prompted${NC}"
+    deploy_print_rerun "--hummingbot-api" "  ${CYAN}# use -y if prompted${NC}"
     echo ""
 }
 
