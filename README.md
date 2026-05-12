@@ -33,12 +33,6 @@ Use this if you **only** want the API and database on this machine (Docker must 
 curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh | bash -s -- --hummingbot-api
 ```
 
-If you already have a `hummingbot-api` folder here and the script asks to update, you can add **`-y`** at the end to answer “yes” automatically:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh | bash -s -- --hummingbot-api -y
-```
-
 ---
 
 ## Update to the latest version
@@ -91,14 +85,14 @@ On the same computer, open:
 
 Only try this if the `curl` command fails or your network blocks the download. You need more technical comfort here.
 
-**API (Docker running):**
+**Condor** — clone [the Condor repository](https://github.com/hummingbot/condor), then in that folder run `make install` and start the app with `make run` .
+
+**Hummingbot API (Docker):**
 
 ```bash
 git clone --depth 1 https://github.com/hummingbot/hummingbot-api.git hummingbot-api
 cd hummingbot-api && make setup && docker compose pull && make deploy
 ```
-
-**Condor** — clone [the Condor repository](https://github.com/hummingbot/condor), then in that folder run `make install` and start the app with `make run` or the `tmux` line shown in the installer output.
 
 ---
 
