@@ -42,7 +42,10 @@ CREATED_DIRS=()
 cleanup() {
     local exit_code=$?
     rm -f get-docker.sh 2>/dev/null || true
-    if [ "$exit_code" -ne 0 ]; then
+    # Guard the iteration: on macOS bash 3.2 with `set -u`, "${arr[@]}" on an
+    # empty array raises an unbound-variable error inside this very trap and
+    # masks the real failure.
+    if [ "$exit_code" -ne 0 ] && [ "${#CREATED_DIRS[@]}" -gt 0 ]; then
         for dir in "${CREATED_DIRS[@]}"; do
             if [ -d "$dir" ]; then
                 msg_warn "Cleaning up partial installation: $dir"
@@ -79,6 +82,20 @@ prompt_yesno() {
             *) msg_warn "Please answer 'y' or 'n'" ;;
         esac
     done
+}
+
+# Run a command with stdin attached to the real terminal when one exists, so
+# child scripts (condor setup-environment.sh, hummingbot-api make setup, etc.)
+# can prompt the user even when this installer was started via `curl … | bash`
+# — in that case the script's own stdin is the pipe, not the terminal.
+# Falls back to inherited stdin when /dev/tty is unavailable or when we are
+# explicitly running non-interactively (CI, DEPLOY_NONINTERACTIVE=1, etc.).
+run_with_tty() {
+    if [[ -r /dev/tty ]] && [[ -w /dev/tty ]] && ! deploy_noninteractive; then
+        "$@" </dev/tty
+    else
+        "$@"
+    fi
 }
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
@@ -287,7 +304,9 @@ check_disk_space() {
     local required_mb=2048
     local available_mb=""
     if [[ "$OS" == "linux" ]] || [[ "$OS" == "darwin" ]]; then
-        available_mb=$(df -m . 2>/dev/null | tail -1 | awk '{print $4}')
+        # -P forces POSIX single-line output so long device names don't wrap
+        # and confuse the column extraction below.
+        available_mb=$(df -mP . 2>/dev/null | awk 'NR==2 {print $4}')
     else
         return
     fi
@@ -410,7 +429,9 @@ install_dependencies() {
                 curl -fsSL https://get.docker.com -o get-docker.sh
                 $SUDO_CMD sh get-docker.sh || exit 1
                 rm -f get-docker.sh
-                [[ $EUID -ne 0 ]] && $SUDO_CMD usermod -aG docker "$USER" || true
+                if [[ $EUID -ne 0 ]]; then
+                    $SUDO_CMD usermod -aG docker "$USER" || true
+                fi
                 if command_exists systemctl; then
                     $SUDO_CMD systemctl enable docker --now 2>/dev/null || true
                 fi
@@ -438,28 +459,46 @@ ensure_condor_env_noninteractive() {
     if [[ -f "$CONDOR_DIR/.env" ]]; then
         return 0
     fi
-    if ! deploy_noninteractive; then
-        return 0
-    fi
-    if [[ -z "${TELEGRAM_TOKEN:-}" ]] || [[ -z "${ADMIN_USER_ID:-}" ]]; then
-        msg_error "DEPLOY_NONINTERACTIVE requires TELEGRAM_TOKEN and ADMIN_USER_ID in the environment."
-        exit 1
-    fi
-    msg_info "Writing $CONDOR_DIR/.env (non-interactive)"
-    umask 077
-    cat > "$CONDOR_DIR/.env" << EOF
+    if deploy_noninteractive; then
+        if [[ -z "${TELEGRAM_TOKEN:-}" ]] || [[ -z "${ADMIN_USER_ID:-}" ]]; then
+            msg_error "DEPLOY_NONINTERACTIVE requires TELEGRAM_TOKEN and ADMIN_USER_ID in the environment."
+            exit 1
+        fi
+        msg_info "Writing $CONDOR_DIR/.env (non-interactive)"
+        umask 077
+        cat > "$CONDOR_DIR/.env" << EOF
 TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
 ADMIN_USER_ID=${ADMIN_USER_ID}
 DEPLOY_HUMMINGBOT_API=${DEPLOY_HUMMINGBOT_API:-false}
 EOF
-    umask 022
+        umask 022
+        return 0
+    fi
+    # Interactive path: Condor's setup-environment.sh will prompt for the values.
+    # That only works if it can read from the user — verify a TTY exists, since
+    # `curl … | bash` leaves the script's stdin pointed at the pipe.
+    if [[ ! -r /dev/tty ]] || [[ ! -w /dev/tty ]]; then
+        msg_error "No controlling terminal available and DEPLOY_NONINTERACTIVE is not set."
+        msg_error "Condor's setup needs TELEGRAM_TOKEN and ADMIN_USER_ID. Either:"
+        msg_error "  • run this installer from an interactive terminal, or"
+        msg_error "  • re-run with DEPLOY_NONINTERACTIVE=1 TELEGRAM_TOKEN=… ADMIN_USER_ID=… …"
+        exit 1
+    fi
 }
 
 ensure_api_dotenv_unattended() {
     # Skip if setup already ran; otherwise write defaults when unattended so make setup does not prompt.
     local api_root="$1"
     [[ -f "$api_root/.env" ]] && return 0
-    if [[ -t 0 ]] && [[ -t 1 ]] && [[ "${AUTO_YES}" != "y" ]] && ! deploy_noninteractive; then
+    # Gate on /dev/tty (not -t 0/-t 1): under `curl … | bash` from a real
+    # terminal, stdin is the pipe but /dev/tty is still open, and upstream
+    # hummingbot-api/setup.sh already reads its prompts from /dev/tty. So
+    # when a TTY exists we leave the .env unwritten and let upstream prompt
+    # the user. When no TTY exists, upstream's no-tty fallback uses plain
+    # `read` which would EOF and die under its own `set -e`, so we keep
+    # seeding defaults in that case.
+    if [[ -r /dev/tty ]] && [[ -w /dev/tty ]] \
+       && [[ "${AUTO_YES}" != "y" ]] && ! deploy_noninteractive; then
         return 0
     fi
     local abs
@@ -571,11 +610,11 @@ run_condor_make_install() {
     (
         cd "$CONDOR_DIR"
         export SKIP_SETUP_RESTART=1
-        make install
+        run_with_tty make install
     ) || exit 1
 
     msg_info "Running make build-frontend..."
-    (cd "$CONDOR_DIR" && make build-frontend) || exit 1
+    (cd "$CONDOR_DIR" && run_with_tty make build-frontend) || exit 1
 }
 
 start_condor_tmux() {
@@ -611,9 +650,9 @@ run_upgrade() {
         (
             cd "$CONDOR_DIR"
             export SKIP_SETUP_RESTART=1
-            make install
+            run_with_tty make install
         ) || msg_warn "Condor make install failed"
-        (cd "$CONDOR_DIR" && make build-frontend) || msg_warn "Condor build-frontend failed"
+        (cd "$CONDOR_DIR" && run_with_tty make build-frontend) || msg_warn "Condor build-frontend failed"
     fi
 
     if [ -d "$API_DIR" ]; then
@@ -658,13 +697,13 @@ install_api_standalone() {
 
     ensure_api_dotenv_unattended "$SCRIPT_DIR/$API_DIR"
 
-    (cd "$API_DIR" && make setup) || exit 1
+    (cd "$API_DIR" && run_with_tty make setup) || exit 1
 
     msg_info "Pulling latest images from docker-compose.yml (postgres, emqx, API)..."
     (cd "$API_DIR" && eval "$DOCKER_COMPOSE pull") || exit 1
     pull_hummingbot_images
 
-    (cd "$API_DIR" && make deploy) || exit 1
+    (cd "$API_DIR" && run_with_tty make deploy) || exit 1
 
     msg_ok "Hummingbot API deployed"
     print_api_post_install_summary "$SCRIPT_DIR"
