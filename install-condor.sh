@@ -18,7 +18,7 @@ set -eu
 CONDOR_REPO="https://github.com/hummingbot/condor.git"
 API_REPO="https://github.com/hummingbot/hummingbot-api.git"
 # Used in printed hints when the script has no file path (e.g. curl | bash)
-DEPLOY_SETUP_RAW_URL="https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/setup.sh"
+DEPLOY_SETUP_RAW_URL="https://raw.githubusercontent.com/hummingbot/deploy/refs/heads/main/install-condor.sh"
 CONDOR_DIR="condor"
 API_DIR="hummingbot-api"
 DOCKER_COMPOSE=""
@@ -169,16 +169,16 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Absolute path for "bash /path/setup.sh …" hints. Empty when piped: `curl … | bash` leaves
-# BASH_SOURCE unset, and `set -u` would error on ${BASH_SOURCE[0]}.
+# Absolute path for "bash /path/install-condor.sh …" hints. Empty when piped: `curl … | bash`
+# leaves BASH_SOURCE unset, and `set -u` would error on ${BASH_SOURCE[0]}.
 deploy_resolve_script_abs() {
     local s="${BASH_SOURCE[0]:-}"
     if [[ -n "$s" && -f "$s" ]]; then
         echo "$(cd "$(dirname "$s")" >/dev/null 2>&1 && pwd)/$(basename "$s")"
         return
     fi
-    if [[ -f "$(pwd)/setup.sh" ]]; then
-        echo "$(pwd)/setup.sh"
+    if [[ -f "$(pwd)/install-condor.sh" ]]; then
+        echo "$(pwd)/install-condor.sh"
         return
     fi
     echo ""
