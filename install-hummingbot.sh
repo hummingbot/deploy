@@ -257,13 +257,36 @@ install_wrapper() {
   info "Installing the ${BOLD}hummingbot${NC} command → $(tildify "$BIN_DIR/hummingbot")"
   cat > "$BIN_DIR/hummingbot" <<'WRAP'
 #!/usr/bin/env bash
-# hummingbot — thin wrapper installed by install-hummingbot.sh (start / update / doctor).
+# hummingbot — thin wrapper installed by install-hummingbot.sh.
+# Verbs: start · update · doctor · --version. It resolves *where* to run
+# bin/hummingbot_quickstart.py (source conda env / docker container) and hides
+# conda activate / docker attach. Not a lifecycle CLI — see INSTALL_WIZARD_PLAN.md.
 set -euo pipefail
+
 STATE="$HOME/.hummingbot/state.json"
 [[ -f "$STATE" ]] || { echo "No Hummingbot install found. Run install-hummingbot.sh first." >&2; exit 1; }
+
 jget() { sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$STATE" | head -1; }
+jset() { sed -i.bak "s/\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"/\"$1\": \"$2\"/" "$STATE" && rm -f "$STATE.bak"; }
+
 METHOD="$(jget method)"; BASE_DIR="$(jget base_dir)"; CHANNEL="$(jget channel)"
 HB_DIR="$BASE_DIR/hummingbot"
+
+branch_for() { [[ "$1" == dev ]] && echo development || echo master; }   # source branch
+tag_for()    { [[ "$1" == dev ]] && echo development || echo latest; }   # docker image tag
+
+usage() {
+  cat <<USAGE
+hummingbot — manage your Hummingbot client ($METHOD, channel: $CHANNEL)
+
+  hummingbot start [--v2 FILE | -f FILE] [-p PASSWORD] [--headless]
+                          launch the client REPL, or autostart a strategy config
+  hummingbot update [--dev | --latest]
+                          pull the newest version (and switch channel)
+  hummingbot doctor       quick health check for this install
+  hummingbot --version    print the installed version
+USAGE
+}
 
 cmd="${1:-start}"; [[ $# -gt 0 ]] && shift || true
 case "$cmd" in
@@ -271,29 +294,42 @@ case "$cmd" in
     case "$METHOD" in
       source) cd "$HB_DIR"; exec conda run -n hummingbot --no-capture-output ./bin/hummingbot_quickstart.py "$@" ;;
       docker) docker start hummingbot >/dev/null 2>&1 || true; exec docker attach hummingbot ;;
-      *) echo "Unknown method '$METHOD'." >&2; exit 1 ;;
+      *) echo "Unknown method '$METHOD' in $STATE." >&2; exit 1 ;;
     esac ;;
   update)
     for a in "$@"; do case "$a" in --dev) CHANNEL=dev ;; --latest) CHANNEL=latest ;; esac; done
     case "$METHOD" in
       source)
         cd "$HB_DIR"
-        [[ "$CHANNEL" == "dev" ]] && git checkout development 2>/dev/null || true
-        git pull --ff-only && make install ;;
+        b="$(branch_for "$CHANNEL")"
+        git fetch --depth 1 origin "$b" 2>/dev/null || git fetch origin 2>/dev/null || true
+        git checkout "$b" 2>/dev/null || git checkout -B "$b" "origin/$b" 2>/dev/null || true
+        git pull --ff-only 2>/dev/null || true
+        make install ;;
       docker)
-        cd "$HB_DIR"; docker compose pull && docker compose up -d ;;
+        cd "$HB_DIR"
+        if [[ -f docker-compose.yml ]]; then
+          sed -i.bak -E "s#(image:[[:space:]]*hummingbot/hummingbot):[^[:space:]]+#\1:$(tag_for "$CHANNEL")#" docker-compose.yml \
+            && rm -f docker-compose.yml.bak
+        fi
+        docker compose pull && docker compose up -d ;;
+      *) echo "Unknown method '$METHOD'." >&2; exit 1 ;;
     esac
+    jset channel "$CHANNEL"
     echo "✓ Updated ($METHOD, channel: $CHANNEL)." ;;
   doctor)
     case "$METHOD" in
       source) conda env list 2>/dev/null | awk '{print $1}' | grep -qx hummingbot \
-                && echo "✓ hummingbot conda env present" || echo "✗ hummingbot conda env missing — run install-hummingbot.sh --source" ;;
+                && echo "✓ hummingbot conda env present" \
+                || { echo "✗ hummingbot conda env missing — run: install-hummingbot.sh --source" >&2; exit 1; } ;;
       docker) docker ps --format '{{.Names}}' 2>/dev/null | grep -qx hummingbot \
-                && echo "✓ hummingbot container running" || echo "! hummingbot container not running — run: hummingbot start" ;;
+                && echo "✓ hummingbot container running" \
+                || echo "! hummingbot container not running — run: hummingbot start" ;;
     esac ;;
   -v|--version|version)
     [[ -f "$HB_DIR/hummingbot/VERSION" ]] && cat "$HB_DIR/hummingbot/VERSION" || echo "unknown" ;;
-  *) echo "usage: hummingbot {start|update [--dev|--latest]|doctor|--version}" >&2; exit 1 ;;
+  -h|--help|help) usage ;;
+  *) echo "unknown command: $cmd" >&2; usage >&2; exit 1 ;;
 esac
 WRAP
   chmod +x "$BIN_DIR/hummingbot"
