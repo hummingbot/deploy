@@ -2,15 +2,24 @@
 #
 # Hummingbot Deploy Instance Installer
 #
-# Orchestrates cloning and upgrades; Condor and hummingbot-api use their own Makefiles.
+# A launcher, not an installer: it installs just enough (git, curl, make —
+# plus docker/docker-compose when a Docker-based stack is involved) to clone
+# a repo and hand off to that repo's own Makefile. Condor's setup-environment.sh
+# and hummingbot-api's setup.sh own every interactive prompt, credential, and
+# config file from there — this script does not duplicate or second-guess them.
 #
-# Non-interactive / CI: set DEPLOY_NONINTERACTIVE=1 (or CI=true) and provide:
-#   TELEGRAM_TOKEN, ADMIN_USER_ID  (written to condor/.env before first make install)
-# Optional: DEPLOY_HUMMINGBOT_API=true|false (default false if omitted)
+# Fresh install (no flags): clone Condor, run `make install`, stop. Condor's
+# own installer takes it from there (it prints its own "make run" / "make
+# doctor" next steps) — first-time setup is interactive, same as running
+# `make install` inside a Condor checkout directly.
 #
-# Standalone API: run this script with --hummingbot-api (see --help).
+# Standalone API: run this script with --hummingbot-api (see --help). Same
+# philosophy: clone hummingbot-api, `make setup`, `make deploy`, stop.
 #
-# Nested make: Condor's setup-environment.sh respects SKIP_SETUP_RESTART=1 (no exec restart).
+# Upgrades: --upgrade pulls and rebuilds Condor (+ hummingbot-api if present)
+# and restarts both — this is the one mode where the script does more than
+# just launch, since there is no single upstream target for "pull + rebuild +
+# restart both repos together."
 #
 set -eu
 
@@ -71,7 +80,10 @@ prompt_yesno() {
     fi
     while true; do
         prompt "$1 (y/n): "
-        if [[ -r /dev/tty ]] && [[ -w /dev/tty ]]; then
+        # Same pitfall as is_interactive(): -r/-w only check the device
+        # node's permission bits, true even with no controlling terminal —
+        # an actual open is the only way to tell.
+        if ( : < /dev/tty ) 2>/dev/null; then
             read -r answer < /dev/tty || answer=""
         else
             read -r answer || answer=""
@@ -91,7 +103,13 @@ prompt_yesno() {
 # Falls back to inherited stdin when /dev/tty is unavailable or when we are
 # explicitly running non-interactively (CI, DEPLOY_NONINTERACTIVE=1, etc.).
 run_with_tty() {
-    if [[ -r /dev/tty ]] && [[ -w /dev/tty ]] && ! deploy_noninteractive; then
+    # Same pitfall as is_interactive()/prompt_yesno(): -r/-w only check the
+    # device node's permission bits, true even with no controlling terminal —
+    # under `docker exec` (no -t), a background job, or a service unit, that
+    # check passes and the redirection below then fails outright ("No such
+    # device or address"), which — under this script's `set -eu` — aborted
+    # the whole install. An actual open is the only way to tell.
+    if ( : < /dev/tty ) 2>/dev/null && ! deploy_noninteractive; then
         "$@" </dev/tty
     else
         "$@"
@@ -125,10 +143,13 @@ is_interactive() {
     if [[ -t 0 ]] && [[ -t 1 ]] && [[ "${TERM:-dumb}" != "dumb" ]]; then
         return 0
     fi
-    if [[ -c /dev/tty ]] && [[ -w /dev/tty ]]; then
-        return 0
-    fi
-    return 1
+    # `-c /dev/tty` and `-w /dev/tty` only check the device node's type and
+    # permission bits, which are present regardless of whether this process
+    # actually has a controlling terminal — under `docker exec` (no -t), a
+    # background job, or a service unit, that check is true anyway and this
+    # function used to report "interactive" right before every read from
+    # /dev/tty failed. Only an actual open attempt tells the two apart.
+    ( : < /dev/tty ) 2>/dev/null
 }
 
 # --- Parse Command Line Arguments ---
@@ -153,7 +174,9 @@ while [[ $# -gt 0 ]]; do
             echo "  -p, --pr ID            Pull a specific PR ID from Condor"
             echo "  -h, --help             Show this help message"
             echo ""
-            echo "Non-interactive Condor install: DEPLOY_NONINTERACTIVE=1 TELEGRAM_TOKEN=... ADMIN_USER_ID=..."
+            echo "Fresh Condor installs are interactive (Condor's own setup wizard runs as"
+            echo "part of 'make install'). DEPLOY_NONINTERACTIVE=1 (or CI=true) only affects"
+            echo "--upgrade and the --hummingbot-api existing-install prompts."
             echo ""
             echo "Examples:"
             echo "  $0                         # Fresh Condor (+ prompts for Telegram / optional API)"
@@ -454,72 +477,109 @@ install_dependencies() {
     refresh_tool_path
 }
 
-ensure_condor_env_noninteractive() {
-    # After clone, before make install — seed .env so setup-environment skips prompts.
-    if [[ -f "$CONDOR_DIR/.env" ]]; then
-        return 0
+# Minimal bootstrap for "clone a repo, then hand off to its own Makefile."
+# $1: space-separated list of required commands, e.g. "git curl make" or
+# "git curl make docker docker-compose". Everything else a project needs to
+# actually run — uv, tmux, node/npm, conda, Tailscale, etc. — is that
+# project's own setup script's job, not this launcher's.
+install_launcher_dependencies() {
+    local wanted=($1)
+    local dep
+
+    MISSING_DEPS=()
+    for dep in "${wanted[@]}"; do
+        case "$dep" in
+            docker-compose)
+                command_exists docker-compose || (command_exists docker && docker compose version >/dev/null 2>&1) || MISSING_DEPS+=("docker-compose")
+                ;;
+            *)
+                command_exists "$dep" || MISSING_DEPS+=("$dep")
+                ;;
+        esac
+    done
+
+    if [ ${#MISSING_DEPS[@]} -eq 0 ]; then
+        msg_ok "Dependencies present ($1)"
+        return
     fi
-    if deploy_noninteractive; then
-        if [[ -z "${TELEGRAM_TOKEN:-}" ]] || [[ -z "${ADMIN_USER_ID:-}" ]]; then
-            msg_error "DEPLOY_NONINTERACTIVE requires TELEGRAM_TOKEN and ADMIN_USER_ID in the environment."
-            exit 1
-        fi
-        msg_info "Writing $CONDOR_DIR/.env (non-interactive)"
-        umask 077
-        cat > "$CONDOR_DIR/.env" << EOF
-TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
-ADMIN_USER_ID=${ADMIN_USER_ID}
-DEPLOY_HUMMINGBOT_API=${DEPLOY_HUMMINGBOT_API:-false}
-EOF
-        umask 022
-        return 0
-    fi
-    # Interactive path: Condor's setup-environment.sh will prompt for the values.
-    # That only works if it can read from the user — verify a TTY exists, since
-    # `curl … | bash` leaves the script's stdin pointed at the pipe.
-    if [[ ! -r /dev/tty ]] || [[ ! -w /dev/tty ]]; then
-        msg_error "No controlling terminal available and DEPLOY_NONINTERACTIVE is not set."
-        msg_error "Condor's setup needs TELEGRAM_TOKEN and ADMIN_USER_ID. Either:"
-        msg_error "  • run this installer from an interactive terminal, or"
-        msg_error "  • re-run with DEPLOY_NONINTERACTIVE=1 TELEGRAM_TOKEN=… ADMIN_USER_ID=… …"
+
+    msg_warn "Missing: ${MISSING_DEPS[*]}"
+
+    if [[ "$OS" != "linux" ]]; then
+        msg_error "Install these manually, then re-run:"
+        printf '  - %s\n' "${MISSING_DEPS[@]}"
         exit 1
     fi
-}
 
-ensure_api_dotenv_unattended() {
-    # Skip if setup already ran; otherwise write defaults when unattended so make setup does not prompt.
-    local api_root="$1"
-    [[ -f "$api_root/.env" ]] && return 0
-    # Gate on /dev/tty (not -t 0/-t 1): under `curl … | bash` from a real
-    # terminal, stdin is the pipe but /dev/tty is still open, and upstream
-    # hummingbot-api/setup.sh already reads its prompts from /dev/tty. So
-    # when a TTY exists we leave the .env unwritten and let upstream prompt
-    # the user. When no TTY exists, upstream's no-tty fallback uses plain
-    # `read` which would EOF and die under its own `set -e`, so we keep
-    # seeding defaults in that case.
-    if [[ -r /dev/tty ]] && [[ -w /dev/tty ]] \
-       && [[ "${AUTO_YES}" != "y" ]] && ! deploy_noninteractive; then
-        return 0
+    local auto_install=false
+    if deploy_noninteractive || [[ "${AUTO_YES}" == "y" ]] || ! is_interactive; then
+        auto_install=true
     fi
-    local abs
-    abs="$(cd "$api_root" && pwd)"
-    msg_info "Writing default $api_root/.env for unattended setup"
-    umask 077
-    cat > "$api_root/.env" << EOF
-USERNAME=${HUMMINGBOT_API_USERNAME:-admin}
-PASSWORD=${HUMMINGBOT_API_PASSWORD:-admin}
-CONFIG_PASSWORD=${HUMMINGBOT_CONFIG_PASSWORD:-admin}
-DEBUG_MODE=false
-BROKER_HOST=localhost
-BROKER_PORT=1883
-BROKER_USERNAME=admin
-BROKER_PASSWORD=password
-DATABASE_URL=postgresql+asyncpg://hbot:hummingbot-api@localhost:5432/hummingbot_api
-GATEWAY_URL=http://localhost:15888
-GATEWAY_PASSPHRASE=${HUMMINGBOT_CONFIG_PASSWORD:-admin}
-BOTS_PATH=$abs
-EOF
-    umask 022
+
+    if ! $auto_install; then
+        if ! is_interactive; then
+            msg_error "Non-interactive shell: install these manually, then re-run."
+            exit 1
+        fi
+        if [ "$(prompt_yesno "Install missing packages automatically?")" != "y" ]; then
+            exit 1
+        fi
+    fi
+
+    local SUDO_CMD=""
+    if [[ $EUID -ne 0 ]]; then
+        command_exists sudo || { msg_error "sudo required to install packages"; exit 1; }
+        SUDO_CMD="sudo"
+    fi
+
+    local PKG_INSTALL
+    if command_exists apt-get; then
+        $SUDO_CMD env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+        PKG_INSTALL="$SUDO_CMD env DEBIAN_FRONTEND=noninteractive apt-get install -y"
+    elif command_exists dnf; then
+        $SUDO_CMD dnf check-update || true
+        PKG_INSTALL="$SUDO_CMD dnf install -y"
+    elif command_exists yum; then
+        PKG_INSTALL="$SUDO_CMD yum install -y"
+    elif command_exists apk; then
+        $SUDO_CMD apk update
+        PKG_INSTALL="$SUDO_CMD apk add"
+    elif command_exists pacman; then
+        $SUDO_CMD pacman -Sy --noconfirm
+        PKG_INSTALL="$SUDO_CMD pacman -S --noconfirm"
+    else
+        msg_error "Unsupported package manager"
+        exit 1
+    fi
+
+    for dep in "${MISSING_DEPS[@]}"; do
+        case "$dep" in
+            docker)
+                curl -fsSL https://get.docker.com -o get-docker.sh
+                $SUDO_CMD sh get-docker.sh || exit 1
+                rm -f get-docker.sh
+                if [[ $EUID -ne 0 ]]; then
+                    $SUDO_CMD usermod -aG docker "$USER" || true
+                fi
+                if command_exists systemctl; then
+                    $SUDO_CMD systemctl enable docker --now 2>/dev/null || true
+                fi
+                ;;
+            docker-compose)
+                if command_exists apt-get; then
+                    eval "$PKG_INSTALL docker-compose-plugin" || eval "$PKG_INSTALL docker-compose" || exit 1
+                else
+                    eval "$PKG_INSTALL docker-compose" || exit 1
+                fi
+                ;;
+            *)
+                msg_info "Installing $dep..."
+                eval "$PKG_INSTALL $dep" || exit 1
+                ;;
+        esac
+    done
+
+    msg_ok "Dependencies installed"
 }
 
 update_condor_config() {
@@ -601,22 +661,6 @@ sync_condor_config_api_credentials() {
     msg_ok "Synced Condor config.yml with API .env credentials"
 }
 
-run_condor_make_install() {
-    if [ ! -d "$CONDOR_DIR" ]; then
-        msg_error "Condor directory not found"
-        exit 1
-    fi
-    msg_info "Running make install (Condor Makefile)..."
-    (
-        cd "$CONDOR_DIR"
-        export SKIP_SETUP_RESTART=1
-        run_with_tty make install
-    ) || exit 1
-
-    msg_info "Running make build-frontend..."
-    (cd "$CONDOR_DIR" && run_with_tty make build-frontend) || exit 1
-}
-
 start_condor_tmux() {
     msg_info "Starting Condor in tmux..."
     if tmux has-session -t condor 2>/dev/null; then
@@ -690,23 +734,23 @@ run_upgrade() {
 
 install_api_standalone() {
     SCRIPT_DIR="$(pwd)"
-    msg_info "Standalone Hummingbot API in $SCRIPT_DIR/$API_DIR"
 
+    echo ""
+    echo -e "${BLUE}Cloning Hummingbot API${NC}"
     CREATED_DIRS+=("$API_DIR")
     git clone --depth 1 "$API_REPO" "$API_DIR" || exit 1
 
-    ensure_api_dotenv_unattended "$SCRIPT_DIR/$API_DIR"
-
+    echo ""
+    msg_info "Handing off to hummingbot-api's installer (make setup)..."
+    echo ""
     (cd "$API_DIR" && run_with_tty make setup) || exit 1
 
-    msg_info "Pulling latest images from docker-compose.yml (postgres, emqx, API)..."
-    (cd "$API_DIR" && eval "$DOCKER_COMPOSE pull") || exit 1
-    pull_hummingbot_images
+    echo ""
+    msg_info "Starting the API stack (make deploy)..."
+    (cd "$API_DIR" && make deploy) || exit 1
 
-    (cd "$API_DIR" && run_with_tty make deploy) || exit 1
-
-    msg_ok "Hummingbot API deployed"
-    print_api_post_install_summary "$SCRIPT_DIR"
+    echo ""
+    msg_ok "Hummingbot API is installed and running in $SCRIPT_DIR/$API_DIR"
 }
 
 print_api_post_install_summary() {
@@ -746,25 +790,25 @@ clone_condor() {
 
 run_fresh_install() {
     SCRIPT_DIR="$(pwd)"
-    msg_ok "Installation directory: $SCRIPT_DIR"
 
     echo ""
-    echo -e "${BLUE}Installing Condor${NC}"
+    echo -e "${BLUE}Cloning Condor${NC}"
     clone_condor
 
     [[ -f "$CONDOR_DIR/Makefile" ]] || { msg_error "Condor Makefile missing"; exit 1; }
 
-    ensure_condor_env_noninteractive
-    run_condor_make_install
-
-    update_condor_config
-    start_condor_tmux
+    echo ""
+    msg_info "Handing off to Condor's installer (make install)..."
+    echo ""
+    (cd "$CONDOR_DIR" && run_with_tty make install) || exit 1
 
     echo ""
-    msg_ok "Installation complete"
-    print_tmux_section
-    print_telegram_verify_section
-    print_condor_install_footer
+    msg_ok "Condor is installed in $SCRIPT_DIR/$CONDOR_DIR"
+    echo ""
+    echo "Later, to upgrade Condor (+ hummingbot-api if installed):"
+    deploy_print_rerun "--upgrade"
+    echo ""
+    print_hummingbot_api_manual_section
 }
 
 # --- Main ---
@@ -786,11 +830,11 @@ detect_os_arch
 check_disk_space
 
 if [ "$HB_API_ONLY_MODE" = "y" ]; then
-    install_dependencies "all"
-    check_docker_running
-    detect_docker_compose
-
     if [ -d "$API_DIR" ]; then
+        install_dependencies "all"
+        check_docker_running
+        detect_docker_compose
+
         msg_warn "Directory exists: $API_DIR"
         if [ "$(prompt_yesno "Upgrade existing API (git pull + compose pull + deploy)?")" = "y" ]; then
             (cd "$API_DIR" && git pull) || exit 1
@@ -802,6 +846,12 @@ if [ "$HB_API_ONLY_MODE" = "y" ]; then
             print_api_post_install_summary "$(pwd)"
         fi
     else
+        # Fresh install: same launcher philosophy as Condor — bootstrap just
+        # enough (git, curl, make, docker) and hand off to hummingbot-api's
+        # own Makefile. No tmux/uv/node/npm here; hummingbot-api needs none
+        # of those to run.
+        install_launcher_dependencies "git curl make docker docker-compose"
+        check_docker_running
         install_api_standalone
     fi
     exit 0
@@ -825,7 +875,11 @@ if should_upgrade; then
     refresh_tool_path
     run_upgrade
 else
-    install_dependencies "condor-only"
-    refresh_tool_path
+    # Fresh install: bootstrap just enough to clone Condor and invoke its own
+    # Makefile. Condor's setup-environment.sh (run as part of `make install`)
+    # installs everything else it needs (uv, tmux, node/npm, docker if the
+    # bundled API is requested) — duplicating that here would just be a
+    # second, out-of-sync copy of Condor's own dependency logic.
+    install_launcher_dependencies "git curl make"
     run_fresh_install
 fi
