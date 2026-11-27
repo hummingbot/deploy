@@ -359,6 +359,13 @@ install_dependencies() {
     local mode="${1:-all}"
     msg_info "Checking dependencies for git clone / make..."
 
+    # Load nvm (and ~/.local/bin etc.) before checking, not only after. On a
+    # rerun, node/npm usually come from the nvm that Condor's installer set up
+    # on the first run, and this script runs under a non-interactive bash that
+    # never reads ~/.zshrc -- so without this, an installed node reads as
+    # missing and macOS exits with "Install these manually".
+    refresh_tool_path
+
     MISSING_DEPS=()
     command_exists git || MISSING_DEPS+=("git")
     command_exists curl || MISSING_DEPS+=("curl")
